@@ -1,7 +1,7 @@
 ---
 title: "Account Documents: Statements, Tax Forms, and More"
 sidebarTitle: "Overview"
-description: "The Buildmarkets Documents API provides access to investor account statements, trade confirmations, tax forms, and compliance documents for retrieval and delivery."
+description: "Learn how the Buildmarkets Documents API manages account statements, tax forms, trade confirmations, and compliance documents for retrieval and delivery."
 ---
 
 The Buildmarkets Documents API gives you structured access to every document associated with an investor's account — from monthly brokerage statements and per-trade confirmations to annual tax forms and uploaded compliance files. You can list, retrieve, download, and email documents programmatically, making it straightforward to build a complete in-app document center or automate document delivery workflows.
@@ -85,7 +85,7 @@ curl https://dev-tapp-api.tappengine.com/v1/documents \
   -H "X-API-Secret: YOUR_API_SECRET" \
   -G \
   --data-urlencode "investor_id=inv_01j9x8m2k7qpzwv3t5r6y8n0ab" \
-  --data-urlencode "purpose=account_statement" \
+  --data-urlencode "purpose=ACCOUNT_STATEMENT" \
   --data-urlencode "limit=20"
 ```
 

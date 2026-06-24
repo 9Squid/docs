@@ -1,5 +1,5 @@
 ---
-title: "Set Up Webhooks for Real-Time Event Notifications"
+title: "Configure Webhooks for Real-Time Event Notifications"
 sidebarTitle: "Webhook Setup"
 description: "Register a Buildmarkets webhook endpoint, subscribe to order and funding events, verify delivery, and build idempotent handlers for production use."
 ---
@@ -103,7 +103,7 @@ Buildmarkets delivers events as HTTP POST requests to your registered URL with `
 | `created` | integer | Unix timestamp when the event was generated |
 | `data` | object | Event-specific payload; fields vary by `event_type` |
 
-Before processing any payload, verify the HMAC-SHA256 signature in the `X-Buildmarkets-Signature` header using your webhook `secret`. See the [Webhook Events Reference](/guides/operations/webhook-setup) for full verification code examples.
+Before processing any payload, verify the HMAC-SHA256 signature in the `X-Buildmarkets-Signature` header using your webhook `secret`. Compute an HMAC-SHA256 digest of the raw request body using your `whsec_` secret and confirm it matches the header value using a constant-time comparison.
 
 <Warning>
 Always validate the `event_type` and `investor_id` in your handler before processing. Never trust the payload content without first confirming the signature matches.

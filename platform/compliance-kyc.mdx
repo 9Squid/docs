@@ -1,7 +1,7 @@
 ---
-title: "KYC Verification and Compliance Workflows"
+title: "KYC and Compliance Verification Workflows in Buildmarkets"
 sidebarTitle: "KYC"
-description: "Submit identity data for KYC verification, track compliance status, and handle approval, rejection, and manual review outcomes."
+description: "Submit identity data for KYC verification, track compliance workflow status, and handle approval, rejection, document requests, and manual review outcomes."
 ---
 
 When you create an investor, Buildmarkets automatically initiates a KYC (Know Your Customer) compliance workflow to verify the investor's identity and screen against regulatory watchlists. The investor account remains in `onboarding` status until the workflow reaches a terminal state. Understanding how the workflow progresses — and how to handle each outcome — is essential for building a smooth onboarding experience.
@@ -77,7 +77,7 @@ curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/compliance \
 
 ## Submit a compliance check result
 
-If your integration uses an async verification SDK (such as the Persona inquiry widget), submit the provider's completion payload once the user finishes the verification flow:
+If your integration uses an async verification SDK, submit the provider's completion payload once the user finishes the verification flow:
 
 ```bash
 curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/compliance/submit \
@@ -111,7 +111,7 @@ curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/compli
 |---|---|
 | `approved` | Allow the investor to fund their account and begin trading. |
 | `awaiting_review` | Show a "review in progress" state in your UI. Subscribe to `investor.status_updated` webhook to notify the investor when review completes. |
-| `awaiting_documents` | Prompt the investor to upload supporting identity documents. Use `POST /v1/accounts/{accountId}/documents/upload` to submit them. |
+| `awaiting_documents` | Prompt the investor to upload supporting identity documents. Use `POST /v1/documents` to submit them. |
 | `declined` | Inform the investor that verification was unsuccessful. Offer the option to re-submit via `POST /v1/investors/{investor_id}/compliance/restart`. |
 | `expired` | Restart the workflow. Expired workflows typically occur when an async verification SDK session times out. |
 

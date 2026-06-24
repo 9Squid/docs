@@ -1,5 +1,5 @@
 ---
-title: "Submit and Track KYC Verification for Investors"
+title: "KYC Verification: Submit and Track Compliance Checks"
 sidebarTitle: "KYC Verification"
 description: "Trigger KYC for a new investor, poll or receive webhooks for the outcome, and handle approval, rejection, and manual review states."
 ---
@@ -170,8 +170,8 @@ Use these SSN suffixes in sandbox to trigger specific KYC outcomes. The SSN pref
 | SSN suffix | Outcome |
 |------------|---------|
 | `0001` | Instant approval → `active` |
-| `0002` | Manual review → `action_required` |
-| `0003` | Declined → `closed` |
+| `0002` | Declined → `closed` |
+| `0003` | Manual review → `action_required` |
 
 <Note>
   In sandbox, KYC results resolve within a few seconds regardless of the SSN used. In production, standard cases typically complete in seconds to minutes; complex cases may enter manual review and take longer.

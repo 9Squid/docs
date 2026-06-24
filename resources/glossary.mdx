@@ -22,10 +22,10 @@ The primary resource in the Buildmarkets API. An investor represents one end-use
 The unique identifier for an investor resource. Format: `inv_01j9x8m2k7qpzwv3t5r6y8n0ab`. Always a prefixed string — treat it as opaque. Do not parse, sort numerically, or derive meaning from the suffix.
 
 **API Key**
-A credential issued to a partner for authenticating API requests. The API key is the username in HTTP Basic Authentication. It is safe to log and include in support requests.
+A credential issued to a partner for authenticating API requests. Sent as the `X-API-Key` request header on every API call. It is safe to log and include in support requests.
 
 **API Secret**
-The password paired with an API key in HTTP Basic Authentication. The API secret is sensitive — never log it, never include it in client-side code, and never include it in support tickets. If exposed, rotate it immediately in the Partner Dashboard.
+The secret paired with an API key. Sent as the `X-API-Secret` request header on every API call. The API secret is sensitive — never log it, never include it in client-side code, and never include it in support tickets. If exposed, rotate it immediately in the Partner Dashboard.
 
 **Scope**
 A permission set attached to an API key that controls which endpoints it can call. An API key without the trading scope, for example, cannot place orders. Contact Buildmarkets to request additional scopes.
@@ -56,7 +56,7 @@ The current state of an investor's KYC workflow. Possible values: `running`, `aw
 A container resource that tracks the status of all individual compliance checks (identity verification, screening, risk assessment) for an investor. Returned from `GET /v1/investors/{investor_id}/compliance`.
 
 **Disclosures**
-Regulated text documents (FINRA, SEC, Alpaca) that must be presented to investors before they can use the platform. Disclosures are versioned — when a version advances, you must re-prompt the investor. Fetched from `GET /v1/disclosures`.
+Regulated text documents that must be presented to investors before they can use the platform. Disclosures are versioned — when a version advances, you must re-prompt the investor. Fetched from `GET /v1/disclosures`.
 
 **Agreements (Signed Agreements)**
 An audit trail of the agreements the investor has accepted, including the timestamp and IP address of each click. Required fields at investor creation: `investor_agreement` and `margin_disclosure_acknowledged`. Non-US tax residents also require `w8ben_certification`.
@@ -98,7 +98,7 @@ A partial share of a security. When an asset has `fractionable: true`, you can p
 A record of an order being matched and executed at the exchange. A fully filled order has `status: filled`, `filled_quantity` equal to the original quantity, and a non-null `filled_at` timestamp.
 
 **Order Status**
-The lifecycle state of an order. Buildmarkets-native values: `pending`, `filled`, `partial`, `cancelled`, `failed`. Note: Buildmarkets uses its own status vocabulary, not Alpaca's.
+The lifecycle state of an order. Values: `pending`, `filled`, `partial`, `cancelled`, `failed`.
 
 **Time in Force**
 How long the order remains active: `day` (expires at market close), `gtc` (Good Till Cancelled), `opg` (at market open), `cls` (at market close), `ioc` (Immediate or Cancel), `fok` (Fill or Kill).

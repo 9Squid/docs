@@ -59,7 +59,7 @@ The following error conditions can occur when calling the email endpoint:
 
 ## Batch delivery pattern
 
-When delivering documents to multiple investors — for example, during monthly statement distribution — fetch each investor's relevant documents using the list endpoint filtered by `purpose=account_statement`, then call the email endpoint for each document in sequence. Respect the API rate limits (10 requests/second on sandbox, 25 requests/second on production) to avoid `429` responses.
+When delivering documents to multiple investors — for example, during monthly statement distribution — fetch each investor's relevant documents using the list endpoint filtered by `purpose=ACCOUNT_STATEMENT`, then call the email endpoint for each document in sequence. Respect the API rate limits (10 requests/second on sandbox, 25 requests/second on production) to avoid `429` responses.
 
 ```bash
 # 1. List the latest account statements for an investor

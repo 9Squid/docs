@@ -262,13 +262,16 @@ if (!response.ok) {
       break;
 
     case 'invalid_request_error':
+      // Validation errors — surface to the calling layer
+      throw new ValidationError(error.message, error.param);
+
+    case 'conflict_error':
       if (error.code === 'BLUM-409-002') {
         // Duplicate client_order_id — this may be a retry hitting an existing order
         // Fetch the existing order by client_order_id instead of creating a new one
         return fetchOrderByClientId(orderPayload.client_order_id);
       }
-      // Other validation errors — surface to the calling layer
-      throw new ValidationError(error.message, error.param);
+      throw new Error(`Conflict: ${error.code} — ${error.message}`);
 
     case 'rate_limit_error':
       // Back off and retry

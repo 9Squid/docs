@@ -1,5 +1,5 @@
 ---
-title: "View Investor Portfolio Positions"
+title: "View Investor Portfolio Positions and Unrealized P&L"
 sidebarTitle: "Positions"
 description: "Retrieve an investor's current positions — including quantity held, market value, cost basis, unrealized P&L, and portfolio chart data."
 ---
@@ -39,7 +39,7 @@ curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/positions \
       "market_value": "1890.00",
       "unrealized_pl": "47.25",
       "unrealized_pl_percent": "2.56",
-      "price_source": "ALPACA",
+      "price_source": "REAL_TIME_FEED",
       "price_confidence": "REAL_TIME",
       "price_timestamp": "2025-06-01T14:30:00.000Z",
       "updated_at": "2025-06-01T14:30:05.000Z"
@@ -63,7 +63,7 @@ curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/positions \
 | `market_value` | Current value of the position: `quantity × current_price` |
 | `unrealized_pl` | Unrealized profit or loss in dollars: `market_value − total_cost_basis` |
 | `unrealized_pl_percent` | Unrealized P&L as a percentage of cost basis |
-| `price_source` | Data provider used: `ALPACA`, `NAYA`, `DATABASE`, or `UNAVAILABLE` |
+| `price_source` | Indicates where the price was sourced from (e.g. `REAL_TIME_FEED`, `UNAVAILABLE`) |
 | `price_confidence` | Freshness of the price: `REAL_TIME`, `DELAYED`, `END_OF_DAY`, `STALE`, or `UNAVAILABLE` |
 | `price_timestamp` | When the current price was last updated |
 

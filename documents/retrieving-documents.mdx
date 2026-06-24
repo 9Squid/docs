@@ -1,7 +1,7 @@
 ---
 title: "List and Download Investor Account Documents"
 sidebarTitle: "Retrieve Documents"
-description: "List documents by type, period, or investor, then download PDF files using signed URLs from the Buildmarkets Documents API."
+description: "List, filter, and paginate account documents, fetch individual document metadata, and download raw file bytes using the Buildmarkets Documents API."
 ---
 
 The Buildmarkets Documents API gives you two complementary retrieval workflows: listing documents with filters to build document history views, and fetching or downloading individual files on demand. All three endpoints below require your `X-API-Key` and `X-API-Secret` headers on every request.
@@ -16,7 +16,7 @@ curl https://dev-tapp-api.tappengine.com/v1/documents \
   -H "X-API-Secret: YOUR_API_SECRET" \
   -G \
   --data-urlencode "investor_id=inv_01j9x8m2k7qpzwv3t5r6y8n0ab" \
-  --data-urlencode "purpose=account_statement" \
+  --data-urlencode "purpose=ACCOUNT_STATEMENT" \
   --data-urlencode "limit=10"
 ```
 
@@ -54,6 +54,9 @@ curl https://dev-tapp-api.tappengine.com/v1/documents \
 
 ```json
 {
+  "object": "list",
+  "url": "/v1/documents",
+  "has_more": false,
   "data": [
     {
       "document_id": "doc_01j9x8m2k7qpzwv3t5r6y8n0ab",
@@ -85,8 +88,7 @@ curl https://dev-tapp-api.tappengine.com/v1/documents \
       "uploaded_at": "2025-04-22T15:30:00Z",
       "metadata": null
     }
-  ],
-  "has_more": false
+  ]
 }
 ```
 

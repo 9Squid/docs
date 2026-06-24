@@ -1,5 +1,5 @@
 ---
-title: "Build a Self-Directed Investing Integration"
+title: "Self-Directed Investing Integration with Buildmarkets"
 sidebarTitle: "Self-Directed"
 description: "Step-by-step guide to a self-directed brokerage integration with Buildmarkets — from account creation through KYC, funding, and your first order."
 ---
@@ -108,6 +108,14 @@ export INVESTOR_ID="inv_01j9x8m2k7qpzwv3t5r6y8n0ab"
 
 The account `status` will be `onboarding` at this point. KYC runs asynchronously; in the sandbox with SSN suffix `0001`, approval is near-instant.
 
+You can retrieve the investor record at any time to check its current status, balances, and profile fields:
+
+```bash
+curl "$BM_BASE/v1/investors/$INVESTOR_ID" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET"
+```
+
 ### Submit KYC
 
 After creating the investor, submit the compliance check to trigger identity verification. In sandbox, this step uses simulated KYC outcomes driven by the SSN suffix you provided in step 2.
@@ -136,7 +144,7 @@ curl "$BM_BASE/v1/investors/$INVESTOR_ID/compliance" \
   -H "X-API-Secret: $BM_SECRET"
 ```
 
-Wait until `status` is `approved` before moving to funding. In production, set up a webhook for the `investor.compliance.approved` event instead of polling.
+Wait until `status` is `approved` before moving to funding. In production, set up a webhook for the `kyc.verification.approved` event instead of polling.
 
 ### Link a bank account
 
@@ -250,7 +258,7 @@ curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders" \
 
 The response includes an `id` (the `order_id`) and an initial `status` of `pending`. In sandbox, orders fill near-instantly.
 
-### Check positions
+### Check positions and wallet
 
 Once the order fills, verify the position appears in the investor's portfolio:
 
@@ -261,6 +269,31 @@ curl "$BM_BASE/v1/investors/$INVESTOR_ID/positions" \
 ```
 
 Each position object includes `symbol`, `quantity`, `average_price`, and unrealized P&L fields. To retrieve a single position by symbol, use the `?symbol=AAPL` query parameter.
+
+To check the investor's cash balance and buying power, retrieve their wallet:
+
+```bash
+curl "$BM_BASE/v1/investors/$INVESTOR_ID/wallets" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET"
+```
+
+Each wallet object includes `currency`, `balance`, `available_balance`, `buying_power`, and `cash_withdrawable`. To send funds back to the investor's bank account, initiate a withdrawal:
+
+```bash
+curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/withdrawals" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "500.00",
+    "currency": "USD",
+    "method": "ach",
+    "funding_source_id": "'$FUNDING_SOURCE_ID'"
+  }'
+```
+
+In sandbox, withdrawals complete immediately. In production, ACH withdrawals take 1–3 business days to settle. Subscribe to `transfer.withdrawal.completed` webhooks to track settlement status.
 
 </Steps>
 

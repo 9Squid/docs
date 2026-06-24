@@ -1,7 +1,7 @@
 ---
-title: "Dollar-Amount and Fractional Share Orders via FIX"
+title: "Dollar-Amount and Fractional Share Orders via FIX 4.4"
 sidebarTitle: "Fractional Orders"
-description: "Submit notional (dollar-amount) orders and fractional share orders through the Buildmarkets FIX gateway — supported on market orders for fractionable securities."
+description: "Submit notional and fractional share orders via the Buildmarkets FIX gateway. Dollar-amount and fractional modes require market orders only."
 ---
 
 The Buildmarkets FIX gateway supports two specialised order entry modes that go beyond standard whole-share quantities: **dollar-amount (notional) orders**, where you specify how many dollars to invest rather than how many shares to buy; and **fractional share orders**, where you specify a non-integer share quantity such as `0.5`. Both modes use the same New Order Single message (`MsgType=D`) with specific tag values to signal the intent.

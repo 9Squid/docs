@@ -1,7 +1,7 @@
 ---
-title: "Link Investor Bank Accounts via Plaid"
+title: "Link Investor Bank Accounts via Plaid for Deposits"
 sidebarTitle: "Bank Linking"
-description: "Use the Buildmarkets Plaid integration to link an investor's external bank account — covering the link token flow, connecting the account, and managing funding sources."
+description: "Connect an investor's external bank via Plaid Link. Covers link token creation, public token exchange, and funding source management."
 ---
 
 Before an investor can deposit or withdraw funds, you need to connect their external bank account as a funding source. Buildmarkets uses Plaid to handle the bank connection flow securely. Your backend creates a short-lived link token, your frontend passes it to the Plaid Link UI component (which handles credential collection and bank authentication entirely on Plaid's infrastructure), and once the user completes the flow, you exchange the resulting public token for a persistent funding source on the investor's account.

@@ -1,5 +1,5 @@
 ---
-title: "Go Live with Buildmarkets in Production"
+title: "Go Live: Launch Your Buildmarkets Brokerage Integration"
 sidebarTitle: "Go Live"
 description: "Complete the Buildmarkets partner checklist and switch from sandbox to production — covering credentials, compliance, and launch verification steps."
 ---
@@ -64,12 +64,13 @@ curl -X POST https://api.tappengine.com/v1/webhooks \
   -H "X-API-Secret: YOUR_PRODUCTION_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
+    "name": "Production webhook",
     "url": "https://your-app.example.com/webhooks/buildmarkets",
-    "events": [
-      "investor.compliance.approved",
-      "investor.compliance.rejected",
+    "eventTypeNames": [
+      "kyc.verification.approved",
+      "kyc.verification.rejected",
       "order.filled",
-      "order.cancelled",
+      "order.canceled",
       "transfer.deposit.completed",
       "transfer.deposit.failed",
       "transfer.withdrawal.completed",
@@ -82,12 +83,12 @@ Confirm your webhook handler returns a `200` status within the delivery timeout.
 
 ### Verify KYC flows with real identity data
 
-In sandbox, KYC was controlled by SSN suffixes. In production, identity verification runs through a real provider (Persona). Test your compliance submission flow with real (non-test) identity data before soft-launching to customers.
+In sandbox, KYC was controlled by SSN suffixes. In production, identity verification runs through a real identity verification provider. Test your compliance submission flow with real (non-test) identity data before soft-launching to customers.
 
 Verify that your application:
 
 - Surfaces a clear in-progress state while KYC is processing (accounts start in `onboarding` or `approval_pending`)
-- Handles `investor.compliance.approved` and `investor.compliance.rejected` webhook events gracefully
+- Handles `kyc.verification.approved` and `kyc.verification.rejected` webhook events gracefully
 - Gives users clear next steps if their account is rejected or requires manual review
 - Does not allow funding or trading until the account reaches `active` status
 

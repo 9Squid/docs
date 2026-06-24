@@ -1,5 +1,5 @@
 ---
-title: "Test Your Integration in the Buildmarkets Sandbox"
+title: "Test in the Buildmarkets Sandbox Before Going Live"
 sidebarTitle: "Sandbox"
 description: "The Buildmarkets sandbox mirrors every production endpoint with simulated KYC, orders, and funding. No real money moves — test safely before going live."
 ---
@@ -64,7 +64,7 @@ Test all three outcomes in your application before going live. Your UI should ha
 Orders placed in sandbox do not route to real markets. They fill automatically with simulated execution prices. You can use this to:
 
 - Verify your order placement logic and `client_order_id` idempotency handling
-- Test your webhook handler for `order.filled` and `order.cancelled` events
+- Test your webhook handler for `order.filled` and `order.canceled` events
 - Confirm that positions update correctly after a fill
 - Exercise your rebalancing logic end-to-end
 
@@ -85,7 +85,7 @@ Use this to:
 | Attribute | Sandbox | Production |
 |---|---|---|
 | **Base URL** | `https://dev-tapp-api.tappengine.com` | `https://api.tappengine.com` |
-| **KYC verification** | Simulated via SSN suffix | Real identity verification (Persona) |
+| **KYC verification** | Simulated via SSN suffix | Real identity verification |
 | **Order routing** | Simulated fills, no real execution | Live order routing to markets |
 | **ACH settlement** | Immediate (no wait) | 1–3 business days |
 | **Real money** | Never — no real funds involved | Yes — real customer funds |

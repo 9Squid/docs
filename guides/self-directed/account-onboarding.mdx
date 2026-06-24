@@ -1,7 +1,7 @@
 ---
-title: "Onboard Investors and Open Brokerage Accounts"
+title: "Onboard Investors and Open Brokerage Accounts via API"
 sidebarTitle: "Account Onboarding"
-description: "Collect investor identity data and open a brokerage account using the Buildmarkets investors API — with all required fields, regulatory disclosures, and agreement capture."
+description: "Collect investor identity data and open a brokerage account via POST /v1/investors. Covers required fields, disclosures, and agreement capture."
 ---
 
 Opening a brokerage account in Buildmarkets is a single API call, but it requires that you collect a complete set of identity, address, suitability, and regulatory disclosure data from your user before making it. The request body is flat — regulatory fields sit at the top level, with only `address`, `signed_agreements[]`, and `trusted_contact` nested. Once you submit the investor record, Buildmarkets initiates KYC verification automatically.

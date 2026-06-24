@@ -64,7 +64,7 @@ Authentication failed. The request did not include valid credentials.
 
 | Code | `type` | Cause | Action |
 | --- | --- | --- | --- |
-| `BLUM-401-001` | `authentication_error` | Missing or malformed `Authorization` header | Ensure you are sending HTTP Basic Auth with `API_KEY:API_SECRET` Base64-encoded |
+| `BLUM-401-001` | `authentication_error` | Missing or malformed `X-API-Key` or `X-API-Secret` header | Ensure both `X-API-Key` and `X-API-Secret` headers are present on every request |
 | `BLUM-401-002` | `authentication_error` | API key does not exist or has been revoked | Generate a new API key in the Partner Dashboard |
 | `BLUM-401-003` | `authentication_error` | API secret is incorrect for the given API key | Verify you are using the correct secret for this key |
 
@@ -188,7 +188,7 @@ Not all errors should be retried. Use this table to decide:
 
 | Symptom | Most likely code | Fix |
 | --- | --- | --- |
-| Every request returns 401 | `BLUM-401-001` | Verify you are Base64-encoding `API_KEY:API_SECRET` and sending it as `Authorization: Basic <encoded>` |
+| Every request returns 401 | `BLUM-401-001` | Verify both `X-API-Key` and `X-API-Secret` headers are present and correct on every request |
 | Order placement fails with 422 | `BLUM-422-001` | Check `buying_power` on the investor before placing — it must be ≥ estimated order value |
 | Duplicate order error on retry | `BLUM-409-001` | On 409, fetch the existing order using `GET /v1/investors/{investor_id}/orders` filtered by `client_order_id` |
 | Account creation returns 400 on `signed_agreements` | `BLUM-400-002` | `signed_agreements` requires at least `investor_agreement` and `margin_disclosure_acknowledged` |
@@ -203,7 +203,8 @@ Use the `type` field for broad branching and the `code` field for specific handl
 const response = await fetch(`${BASE_URL}/investors/${investorId}/orders`, {
   method: 'POST',
   headers: {
-    'Authorization': `Basic ${btoa(`${apiKey}:${apiSecret}`)}`,
+    'X-API-Key': apiKey,
+    'X-API-Secret': apiSecret,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify(orderPayload),

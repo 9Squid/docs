@@ -1,7 +1,7 @@
 ---
 title: "Order Cancel Reject (MsgType=9): Cancel Request Declined"
 sidebarTitle: "Cancel Reject"
-description: "The Order Cancel Reject (MsgType=9) is returned when the gateway cannot process a cancel request — typically because the order is already filled or cancelled."
+description: "The Order Cancel Reject (MsgType=9) is returned when the gateway cannot process a cancel request — order already filled, cancelled, or expired."
 ---
 
 The Order Cancel Reject message (`MsgType=9`) is sent by the Buildmarkets gateway when it cannot process your Order Cancel Request (`MsgType=F`). This is a receive-only message — you will never send it. The most common reasons for a cancel rejection are that the order has already been fully filled, has already been cancelled, has expired, or the `OrderID` provided does not match any known order on the gateway. The original order retains whatever state it was in before your cancel request arrived.
@@ -13,7 +13,7 @@ The Order Cancel Reject message (`MsgType=9`) is sent by the Buildmarkets gatewa
 | 11 | ClOrdID | Y | String | `ClOrdID` from your cancel request (Tag 11 of the `MsgType=F`) |
 | 17 | ExecID | Y | String | Execution identifier assigned by the gateway for this event |
 | 37 | OrderID | Y | String | Gateway-assigned order identifier |
-| 39 | OrdStatus | Y | Char | Current status of the order; typically `8` (Rejected) in this context |
+| 39 | OrdStatus | Y | Char | Current status of the order (e.g. `2`=Filled, `4`=Canceled, `C`=Expired) — reflects the order's actual state, not the cancel attempt |
 | 41 | OrigClOrdID | Y | String | `ClOrdID` of the order that could not be cancelled |
 | 58 | Text | N | String | Human-readable explanation of why the cancel was rejected |
 | 434 | CxlRejResponseTo | Y | Int | Type of request being rejected — always `1` for cancel requests |
@@ -41,7 +41,7 @@ While Tag 58 is free text, the following messages are typical from the Buildmark
 
 ```fix
 8=FIX.4.4|35=9|49=BUILDMARKETS|56=CLIENT1|34=60|52=20260212-15:00:00.500|
-11=CXL-20260212-001|17=EXEC-020|37=BMKT-78450|39=8|41=ORD-20260212-001|
+11=CXL-20260212-001|17=EXEC-020|37=BMKT-78450|39=2|41=ORD-20260212-001|
 434=1|58=Order already filled|10=056|
 ```
 

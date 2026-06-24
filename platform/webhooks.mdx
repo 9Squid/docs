@@ -185,11 +185,22 @@ POST /v1/webhooks
 
 Retrieve the live list of all subscribable event types from the API:
 
-```bash
-curl https://api.tappengine.com/v1/webhooks/event-types \
-  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
-  -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
-```
+<Tabs>
+  <Tab title="Sandbox">
+    ```bash
+    curl https://dev-tapp-api.tappengine.com/v1/webhooks/event-types \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
+    ```
+  </Tab>
+  <Tab title="Production">
+    ```bash
+    curl https://api.tappengine.com/v1/webhooks/event-types \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
+    ```
+  </Tab>
+</Tabs>
 
 ### Order events
 
@@ -197,6 +208,7 @@ curl https://api.tappengine.com/v1/webhooks/event-types \
 |---|---|
 | `order.created` | A new trading order was submitted |
 | `order.filled` | The order was fully executed at the exchange |
+| `order.canceled` | The order was cancelled (by you or by the exchange) |
 | `order.failed` | Order execution failed (e.g. insufficient funds, invalid symbol) |
 
 ### Account and KYC events
@@ -322,33 +334,71 @@ Best practices for reliable webhook handling:
 
 Change the URL, event subscriptions, or delivery status of an existing webhook. Include only the fields you want to update.
 
-```bash
-curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
-  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
-  -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://myapp.com/webhooks/buildmarkets-v2",
-    "eventTypeNames": [
-      "order.filled",
-      "order.failed",
-      "transfer.deposit.completed",
-      "transfer.withdrawal.completed",
-      "kyc.verification.approved",
-      "kyc.verification.rejected"
-    ]
-  }'
-```
+<Tabs>
+  <Tab title="Sandbox">
+    ```bash
+    curl -X PATCH https://dev-tapp-api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "url": "https://myapp.com/webhooks/buildmarkets-v2",
+        "eventTypeNames": [
+          "order.filled",
+          "order.canceled",
+          "order.failed",
+          "transfer.deposit.completed",
+          "transfer.withdrawal.completed",
+          "kyc.verification.approved",
+          "kyc.verification.rejected"
+        ]
+      }'
+    ```
+  </Tab>
+  <Tab title="Production">
+    ```bash
+    curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "url": "https://myapp.com/webhooks/buildmarkets-v2",
+        "eventTypeNames": [
+          "order.filled",
+          "order.canceled",
+          "order.failed",
+          "transfer.deposit.completed",
+          "transfer.withdrawal.completed",
+          "kyc.verification.approved",
+          "kyc.verification.rejected"
+        ]
+      }'
+    ```
+  </Tab>
+</Tabs>
 
 To pause delivery without deleting the webhook, set `status` to `INACTIVE`:
 
-```bash
-curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
-  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
-  -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{ "status": "INACTIVE" }'
-```
+<Tabs>
+  <Tab title="Sandbox">
+    ```bash
+    curl -X PATCH https://dev-tapp-api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{ "status": "INACTIVE" }'
+    ```
+  </Tab>
+  <Tab title="Production">
+    ```bash
+    curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{ "status": "INACTIVE" }'
+    ```
+  </Tab>
+</Tabs>
 
 ---
 
@@ -358,11 +408,22 @@ Permanently removes the webhook. Delivery to the registered URL stops immediatel
 
 Returns `204 No Content` on success.
 
-```bash
-curl -X DELETE https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
-  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
-  -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
-```
+<Tabs>
+  <Tab title="Sandbox">
+    ```bash
+    curl -X DELETE https://dev-tapp-api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
+    ```
+  </Tab>
+  <Tab title="Production">
+    ```bash
+    curl -X DELETE https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
+    ```
+  </Tab>
+</Tabs>
 
 ---
 
@@ -370,11 +431,22 @@ curl -X DELETE https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n
 
 Retrieve all webhooks registered for your tenant. The `secret` field is **not** included in list responses.
 
-```bash
-curl https://api.tappengine.com/v1/webhooks \
-  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
-  -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
-```
+<Tabs>
+  <Tab title="Sandbox">
+    ```bash
+    curl https://dev-tapp-api.tappengine.com/v1/webhooks \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
+    ```
+  </Tab>
+  <Tab title="Production">
+    ```bash
+    curl https://api.tappengine.com/v1/webhooks \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
+    ```
+  </Tab>
+</Tabs>
 
 ---
 

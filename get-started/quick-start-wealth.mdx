@@ -1,5 +1,5 @@
 ---
-title: "Build a Wealth Management Integration"
+title: "Wealth Management Integration Guide for Buildmarkets"
 sidebarTitle: "Wealth Management"
 description: "Build advisor-managed or robo-advisory accounts with Buildmarkets — from account setup and ACH funding to portfolio construction and rebalancing."
 ---
@@ -300,12 +300,13 @@ curl -X POST "$BM_BASE/v1/webhooks" \
   -H "X-API-Secret: $BM_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
+    "name": "Wealth management webhook",
     "url": "https://your-app.example.com/webhooks/buildmarkets",
-    "events": [
+    "eventTypeNames": [
       "order.filled",
-      "order.cancelled",
+      "order.canceled",
       "transfer.deposit.completed",
-      "investor.compliance.approved"
+      "kyc.verification.approved"
     ]
   }'
 ```

@@ -1,5 +1,5 @@
 ---
-title: "Access Real-Time and Historical Market Data"
+title: "Access Market Status, Quotes, and Historical Price Bars"
 sidebarTitle: "Market Data"
 description: "Fetch real-time quotes, OHLCV historical bars, market status, trading calendar, and asset fundamentals using the Buildmarkets market data API."
 ---
@@ -258,7 +258,7 @@ curl "https://api.tappengine.com/v1/market-data/assets/AAPL/snapshot" \
 Retrieve descriptive and valuation data for a company, including sector classification, P/E ratio, market cap, and employee count.
 
 ```bash
-curl "https://api.tappengine.com/v1/marketdata/company-profile/AAPL" \
+curl "https://api.tappengine.com/v1/market-data/company-profile/AAPL" \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "X-API-Secret: YOUR_API_SECRET"
 ```
@@ -266,7 +266,7 @@ curl "https://api.tappengine.com/v1/marketdata/company-profile/AAPL" \
 For structured financial statements — income statement, balance sheet, and cash flow data — use the balance sheet endpoint:
 
 ```bash
-curl "https://api.tappengine.com/v1/marketdata/balance-sheet/AAPL?statementType=annual&numberOfReports=4" \
+curl "https://api.tappengine.com/v1/market-data/balance-sheet/AAPL?statementType=annual&numberOfReports=4" \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "X-API-Secret: YOUR_API_SECRET"
 ```
@@ -276,7 +276,7 @@ curl "https://api.tappengine.com/v1/marketdata/balance-sheet/AAPL?statementType=
 Fetch recent news articles and corporate action events for a symbol, returned in reverse chronological order.
 
 ```bash
-curl "https://api.tappengine.com/v1/marketdata/news/AAPL?limit=10" \
+curl "https://api.tappengine.com/v1/market-data/news/AAPL?limit=10" \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "X-API-Secret: YOUR_API_SECRET"
 ```
@@ -286,7 +286,7 @@ curl "https://api.tappengine.com/v1/marketdata/news/AAPL?limit=10" \
 Retrieve historical cash dividend records including ex-date, pay date, and per-share amount. Supports date range filtering and CUSIP/ISIN lookup.
 
 ```bash
-curl "https://api.tappengine.com/v1/marketdata/cash-dividends/AAPL?excludingFrom=2025-01-01&excludingTo=2025-12-31" \
+curl "https://api.tappengine.com/v1/market-data/cash-dividends/AAPL?excludingFrom=2025-01-01&excludingTo=2025-12-31" \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "X-API-Secret: YOUR_API_SECRET"
 ```
@@ -296,7 +296,7 @@ curl "https://api.tappengine.com/v1/marketdata/cash-dividends/AAPL?excludingFrom
 Retrieve a hosted logo image URL for display in your UI. Cache the URL on your side — logos are stable and do not change frequently.
 
 ```bash
-curl "https://api.tappengine.com/v1/marketdata/logos/AAPL" \
+curl "https://api.tappengine.com/v1/market-data/logos/AAPL" \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "X-API-Secret: YOUR_API_SECRET"
 ```
