@@ -1,0 +1,248 @@
+---
+title: "Place and Manage Equity and ETF Orders"
+sidebarTitle: "Trading"
+description: "Submit market, limit, stop, and stop-limit orders for equities and ETFs. Understand order states, execution reports, and how to cancel working orders."
+---
+
+The Buildmarkets trading API lets you submit, track, and cancel orders for U.S.-listed equities and ETFs on behalf of your investors. Orders can be quantity-based (buy or sell an exact number of shares) or notional-based (buy a specific dollar amount). Always include a `client_order_id` on every order request to make submissions safely idempotent.
+
+An investor must be in `active` status and have sufficient `buying_power` in their wallet before you place a buy order.
+
+## Supported order types
+
+| Type | Description | Required extra fields |
+|---|---|---|
+| `market` | Execute immediately at the best available market price | None |
+| `limit` | Execute only at the specified price or better | `limit_price` |
+| `stop` | Trigger a market order when price reaches `stop_price` | `stop_price` |
+| `stop_limit` | Trigger a limit order when price reaches `stop_price` | `stop_price`, `limit_price` |
+| `trailing_stop` | Dynamic stop that follows price by a fixed percentage | `trail_percent` or `trail_price` |
+
+## Place an order
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/orders \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbol": "AAPL",
+    "side": "buy",
+    "type": "market",
+    "time_in_force": "day",
+    "quantity": "10",
+    "client_order_id": "user-123-AAPL-buy-20250601-001"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "id": "ord_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "object": "order",
+  "created": 1748390400,
+  "livemode": false,
+  "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0cd",
+  "symbol": "AAPL",
+  "currency": "USD",
+  "side": "buy",
+  "type": "market",
+  "time_in_force": "day",
+  "quantity": "10",
+  "status": "pending",
+  "filled_quantity": "0",
+  "remaining_quantity": "10",
+  "average_price": "0.00",
+  "client_order_id": "user-123-AAPL-buy-20250601-001",
+  "submitted_at": "2025-06-01T14:30:00.000Z",
+  "filled_at": null,
+  "cancelled_at": null,
+  "failure_reason": null
+}
+```
+
+## Order examples
+
+<Tabs>
+  <Tab title="Market buy (shares)">
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/orders \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "symbol": "AAPL",
+        "side": "buy",
+        "type": "market",
+        "time_in_force": "day",
+        "quantity": "10",
+        "client_order_id": "unique-order-id-001"
+      }'
+    ```
+  </Tab>
+  <Tab title="Market buy (dollar amount)">
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/orders \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "symbol": "GOOGL",
+        "side": "buy",
+        "type": "market",
+        "time_in_force": "day",
+        "notional": "1000.00",
+        "client_order_id": "unique-order-id-002"
+      }'
+    ```
+  </Tab>
+  <Tab title="Limit buy">
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/orders \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "symbol": "MSFT",
+        "side": "buy",
+        "type": "limit",
+        "time_in_force": "gtc",
+        "quantity": "5",
+        "limit_price": "350.00",
+        "client_order_id": "unique-order-id-003"
+      }'
+    ```
+  </Tab>
+  <Tab title="Stop loss">
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/orders \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "symbol": "TSLA",
+        "side": "sell",
+        "type": "stop",
+        "time_in_force": "gtc",
+        "quantity": "20",
+        "stop_price": "200.00",
+        "client_order_id": "unique-order-id-004"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+## Quantity vs. notional
+
+You can specify an order in shares or in dollars — but never both in the same request.
+
+| Field | Use when | Example |
+|---|---|---|
+| `quantity` | You want to buy or sell an exact number of shares | `"quantity": "10"` — buy exactly 10 shares |
+| `notional` | You want to invest a specific dollar amount (fractional shares supported) | `"notional": "500.00"` — buy $500 worth |
+
+<Tip>
+  Use `notional` to build dollar-cost averaging or round-up investing experiences where the exact share count doesn't matter to the investor.
+</Tip>
+
+## Time-in-force options
+
+| Value | Description |
+|---|---|
+| `day` | Active for the current trading session only; cancels at market close if unfilled |
+| `gtc` | Good Till Cancelled — remains active until filled or manually cancelled |
+| `opg` | Market-on-open — executes at the opening auction price |
+| `cls` | Market-on-close — executes at the closing auction price |
+| `ioc` | Immediate or Cancel — fills what's available immediately, cancels the rest |
+| `fok` | Fill or Kill — fills the entire quantity at once or cancels entirely |
+
+## Extended hours trading
+
+Set `extended_hours: true` to allow execution during pre-market (4:00 AM–9:30 AM ET) and after-hours (4:00 PM–8:00 PM ET) sessions. Extended hours trading is only supported for `limit` orders with `time_in_force: day`.
+
+```json
+{
+  "symbol": "AAPL",
+  "side": "buy",
+  "type": "limit",
+  "time_in_force": "day",
+  "quantity": "5",
+  "limit_price": "180.00",
+  "extended_hours": true
+}
+```
+
+## Order lifecycle
+
+Orders move through status transitions from submission to a terminal state. Subscribe to the `order.status_updated` webhook event to receive notifications as this happens.
+
+| Status | Description |
+|---|---|
+| `pending` | Order received by Buildmarkets; being submitted to the market |
+| `filled` | Order is fully executed |
+| `partial` | Some shares filled; remainder still working |
+| `cancelled` | Order was cancelled — either by your request or by the exchange |
+| `failed` | Order was rejected; see `failure_reason` for details |
+
+## Cancel an order
+
+Send a `POST` request to the cancel endpoint while the order is in `pending` or `partial` status:
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/orders/ORDER_ID/cancel \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+The response returns the updated order object. The cancellation is not always immediate — the exchange must confirm before the status moves from `pending` to `cancelled`.
+
+<Warning>
+  You cannot cancel a `filled` or `failed` order. Attempting to do so returns a `400` error.
+</Warning>
+
+## Idempotency with `client_order_id`
+
+Always include a `client_order_id` — a unique string you generate — on every order request. If your request times out and you retry, Buildmarkets returns the original order instead of creating a duplicate.
+
+A practical pattern for generating idempotent IDs:
+
+```
+{investor_id}-{symbol}-{side}-{YYYYMMDD}-{sequence}
+```
+
+For example: `inv_01j9x8m2-AAPL-buy-20250601-001`.
+
+## Retrieve and list orders
+
+```bash
+# Get a single order
+curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/orders/ORDER_ID \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+
+# List all orders for an investor (filter to open orders)
+curl "https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/orders?status=open" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Filter orders with these query parameters:
+
+| Parameter | Description |
+|---|---|
+| `status` | `open`, `pending`, `filled`, `partial`, `cancelled`, `failed` |
+| `symbol` | Filter by ticker symbol |
+| `side` | `buy` or `sell` |
+| `class` | Asset class: `equity`, `etf`, `bond` |
+| `limit` | Results per page (max 100) |
+| `offset` | Pagination offset |
+
+## Trading endpoints summary
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/v1/investors/{id}/orders` | Place a new order |
+| `GET` | `/v1/investors/{id}/orders` | List all orders |
+| `GET` | `/v1/investors/{id}/orders/{order_id}` | Get order details |
+| `POST` | `/v1/investors/{id}/orders/{order_id}/cancel` | Cancel an open order |

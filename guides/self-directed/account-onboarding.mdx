@@ -1,0 +1,201 @@
+---
+title: "Onboard Investors and Open Brokerage Accounts"
+sidebarTitle: "Account Onboarding"
+description: "Collect investor identity data and open a brokerage account using the Buildmarkets investors API — with all required fields, regulatory disclosures, and agreement capture."
+---
+
+Opening a brokerage account in Buildmarkets is a single API call, but it requires that you collect a complete set of identity, address, suitability, and regulatory disclosure data from your user before making it. The request body is flat — regulatory fields sit at the top level, with only `address`, `signed_agreements[]`, and `trusted_contact` nested. Once you submit the investor record, Buildmarkets initiates KYC verification automatically.
+
+## Prerequisites
+
+- A valid `X-API-Key` and `X-API-Secret` for your tenant
+- Your user's identity and suitability information collected via your onboarding UI
+
+## Required fields
+
+Collect and validate these fields before calling the API. Missing any required field returns a `400` error.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `first_name` | string | Legal first name |
+| `last_name` | string | Legal last name |
+| `date_of_birth` | string | Date of birth in `YYYY-MM-DD` format |
+| `email` | string | Primary email address |
+| `phone` | string | Phone number with country code (e.g. `+14155551234`) |
+| `address.street` | string[] | Street address lines |
+| `address.city` | string | City |
+| `address.state` | string | 2-letter state code (e.g. `CA`) |
+| `address.postal_code` | string | ZIP code |
+| `address.country` | string | ISO 2-letter country code |
+| `tax_id` | string | SSN for US residents (9 digits, dashes optional) |
+| `tax_id_type` | string | `SSN` for US residents |
+| `funding_source` | string[] | Sources of funds (e.g. `["employment_income"]`) |
+| `annual_income` | object | `{ min, max }` in USD strings |
+| `liquid_net_worth` | object | `{ min, max }` in USD strings |
+| `is_control_person` | boolean | FINRA control person disclosure |
+| `is_affiliated_exchange_or_finra` | boolean | FINRA affiliation disclosure |
+| `is_politically_exposed` | boolean | PEP disclosure |
+| `immediate_family_exposed` | boolean | Immediate family PEP disclosure |
+| `signed_agreements` | array | At minimum, `investor_agreement` with timestamp and IP |
+
+<Steps>
+  <Step title="Collect investor identity data">
+    Gather all required personal and suitability information in your onboarding UI. Display the regulatory disclosure questions — control person status, FINRA affiliation, and politically exposed person status — and record the user's answers. You must also present the investor agreement for the user to accept before making the API call.
+
+    Validate `date_of_birth` is in `YYYY-MM-DD` format and `tax_id` is 9 digits before submitting. Record the exact timestamp and IP address when the user accepts the agreement — these fields are required for regulatory compliance.
+  </Step>
+
+  <Step title="Create the investor account">
+    Send the collected data to `POST /v1/investors`. The response returns an investor object with a generated `id` and an initial `status` of `onboarding`.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "account_type": "individual",
+        "management_type": "self_directed",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "date_of_birth": "1990-05-15",
+        "email": "jane.doe@example.com",
+        "phone": "+14155551234",
+        "address": {
+          "street": ["456 Oak Avenue"],
+          "city": "San Francisco",
+          "state": "CA",
+          "postal_code": "94102",
+          "country": "US"
+        },
+        "tax_id": "987-65-0001",
+        "tax_id_type": "SSN",
+        "country_of_tax_residence": "US",
+        "country_of_citizenship": "US",
+        "country_of_birth": "US",
+        "funding_source": ["employment_income"],
+        "annual_income": { "min": "75000", "max": "99999" },
+        "liquid_net_worth": { "min": "20000", "max": "49999" },
+        "is_control_person": false,
+        "is_affiliated_exchange_or_finra": false,
+        "is_politically_exposed": false,
+        "immediate_family_exposed": false,
+        "employment_status": "employed",
+        "employer_name": "Acme Inc",
+        "signed_agreements": [
+          {
+            "type": "investor_agreement",
+            "signed_at": "2026-01-15T10:30:00.000Z",
+            "ip_address": "203.0.113.42"
+          }
+        ]
+      }'
+    ```
+
+    A successful request returns `201 Created` with the full investor object:
+
+    ```json
+    {
+      "id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "object": "investor",
+      "status": "onboarding",
+      "account_type": "individual",
+      "management_type": "self_directed",
+      "account_number": null,
+      "currency": "USD",
+      "balance": "0.00",
+      "buying_power": "0",
+      "first_name": "Jane",
+      "last_name": "Doe",
+      "email": "jane.doe@example.com",
+      "compliance_checks": [
+        {
+          "workflow_id": "cw_01j9x8m2k7qpzwv3t5r6y8n0cd",
+          "check_type": "identity_verification",
+          "status": "pending",
+          "provider": "persona-identity",
+          "verification_url": "https://withpersona.com/verify?inquiry-id=inq_abc123"
+        },
+        {
+          "workflow_id": "cw_01j9x8m2k7qpzwv3t5r6y8n0cd",
+          "check_type": "screening",
+          "status": "pending",
+          "provider": "persona-screening"
+        }
+      ]
+    }
+    ```
+
+    Store the `id` (the `inv_…` prefixed string) — you will use it as the `investor_id` path parameter in every subsequent API call for this investor.
+
+    <Note>
+      In sandbox, use a `tax_id` ending in `0001` (e.g. `987-65-0001`) to trigger instant KYC approval. The investor's status transitions to `active` within seconds. All other SSN values follow the standard asynchronous KYC flow.
+    </Note>
+  </Step>
+
+  <Step title="Collect and record regulatory disclosures">
+    Some disclosures must be captured after account creation — for example, when you re-prompt a user after a disclosure version update, or when presenting product-specific disclosures such as FDIC sweep program terms. Use `POST /v1/investors/{investor_id}/disclosures/acceptances` to record these.
+
+    First, retrieve available disclosures via `GET /v1/disclosures` to get the correct `disclosure_id` values for your platform.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/disclosures/acceptances \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "disclosure_id": "bluum_advisory_disclosure",
+        "signed_at": "2026-01-15T10:31:00.000Z",
+        "ip_address": "203.0.113.42"
+      }'
+    ```
+
+    <Note>
+      For Alpaca-required agreements such as `investor_agreement`, always include them in the `signed_agreements[]` array on the initial `POST /v1/investors` call rather than recording them post-hoc. Use the disclosures acceptances endpoint for Buildmarkets-only disclosures or for re-prompting after version bumps.
+    </Note>
+  </Step>
+
+  <Step title="Wait for account activation">
+    After creation, the investor's `status` is `onboarding` while KYC checks run. Once verification completes, the status transitions to `active` (approved), `action_required` (manual review needed), or `closed` (rejected).
+
+    Subscribe to the `investor.updated` webhook event to receive real-time notifications when the status changes. Alternatively, poll `GET /v1/investors/{investor_id}` and check the `status` field.
+
+    ```bash
+    curl https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET"
+    ```
+
+    Only proceed to bank linking and funding once the account reaches `active` status.
+  </Step>
+</Steps>
+
+## Account status reference
+
+| Status | Description | Next step |
+|--------|-------------|-----------|
+| `onboarding` | Account created; KYC checks in progress | Wait for status change |
+| `active` | KYC approved; account ready for funding and trading | Proceed to bank linking |
+| `action_required` | Manual review needed; user may need to provide documents | Surface message to user |
+| `closed` | Account rejected or closed | Do not proceed |
+
+## Common validation errors
+
+| HTTP Status | Error | Cause |
+|-------------|-------|-------|
+| `400` | `MISSING_REQUIRED_FIELD: email` | Email address omitted |
+| `400` | `MISSING_REQUIRED_FIELD: tax_id` | SSN omitted from request |
+| `400` | `VALIDATION_ERROR: date_of_birth` | Date not in `YYYY-MM-DD` format |
+| `400` | `MISSING_REQUIRED_FIELD: signed_agreements` | No agreements array provided |
+| `400` | `VALIDATION_ERROR: signed_agreements[0].signed_at` | Timestamp not in ISO 8601 format |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="KYC Verification" href="/guides/self-directed/kyc-verification">
+    Track the KYC workflow and handle each possible outcome.
+  </Card>
+  <Card title="Bank Linking" href="/guides/self-directed/bank-linking">
+    Connect the investor's bank account once their status is active.
+  </Card>
+</CardGroup>

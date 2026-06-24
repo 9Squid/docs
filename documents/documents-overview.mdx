@@ -1,0 +1,117 @@
+---
+title: "Account Documents: Statements, Tax Forms, and More"
+sidebarTitle: "Overview"
+description: "The Buildmarkets Documents API provides access to investor account statements, trade confirmations, tax forms, and compliance documents for retrieval and delivery."
+---
+
+The Buildmarkets Documents API gives you structured access to every document associated with an investor's account — from monthly brokerage statements and per-trade confirmations to annual tax forms and uploaded compliance files. You can list, retrieve, download, and email documents programmatically, making it straightforward to build a complete in-app document center or automate document delivery workflows.
+
+## Document types
+
+Buildmarkets organises documents using a `purpose` tag that captures the functional category of a document, and a free-form `document_type` field that carries the specific classifier (for example, `PASSPORT` or `1099-B`). The table below covers the most common values.
+
+| Purpose | `document_type` examples | Description |
+|---|---|---|
+| `account_statement` | `MONTHLY_STATEMENT`, `QUARTERLY_STATEMENT` | Periodic brokerage account statements summarising activity and balances |
+| `trade_confirmation` | `TRADE_CONFIRMATION` | Per-trade execution confirmations generated when an order fills |
+| `tax` | `1099-B`, `1099-DIV`, `1099-INT`, `1042-S` | Annual tax forms required for investor reporting |
+| `agreement` | `ACCOUNT_AGREEMENT`, `MARGIN_DISCLOSURE` | Account-opening and regulatory agreement copies |
+| `kyc` | `PASSPORT`, `DRIVERS_LICENSE`, `PROOF_OF_ADDRESS` | Identity and address verification documents uploaded during onboarding |
+| `kyb` | `ARTICLES_OF_INCORPORATION`, `EIN_LETTER` | Business verification documents for corporate accounts |
+| `funding_verification` | `BANK_STATEMENT`, `WIRE_CONFIRMATION` | Supporting documents for deposit or withdrawal verification |
+| `other` | Any free-form value | Documents that do not fit a standard category |
+
+## Document object
+
+Every document returned by the API shares the same flat shape. The `document_id` field is the stable identifier you use in all subsequent requests.
+
+```json
+{
+  "document_id": "doc_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "object": "document",
+  "owner_type": "investor",
+  "owner_id": "01j9x8m2k7qpzwv3t5r6y8n0cd",
+  "purpose": "account_statement",
+  "document_type": "MONTHLY_STATEMENT",
+  "file_name": "statement-2025-04.pdf",
+  "mime_type": "application/pdf",
+  "file_size": 204800,
+  "status": "accepted",
+  "expires_at": null,
+  "uploaded_at": "2025-05-01T06:00:00Z",
+  "metadata": null
+}
+```
+
+<ResponseField name="document_id" type="string" required>
+  Prefixed unique identifier for the document (e.g. `doc_…`). Use this in all retrieval, download, and email requests.
+</ResponseField>
+
+<ResponseField name="object" type="string" required>
+  Always `"document"`.
+</ResponseField>
+
+<ResponseField name="owner_type" type="string" required>
+  Ownership context: `"investor"`, `"user"`, or `"tenant"`.
+</ResponseField>
+
+<ResponseField name="owner_id" type="string" required>
+  UUID of the owning entity.
+</ResponseField>
+
+<ResponseField name="purpose" type="string">
+  Functional category: `account_statement`, `trade_confirmation`, `tax`, `agreement`, `kyc`, `kyb`, `funding_verification`, or `other`.
+</ResponseField>
+
+<ResponseField name="document_type" type="string" required>
+  Free-form classifier (e.g. `PASSPORT`, `1099-B`, `MONTHLY_STATEMENT`).
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Lifecycle state: `uploaded`, `processing`, `accepted`, `rejected`, or `expired`.
+</ResponseField>
+
+<ResponseField name="uploaded_at" type="string" required>
+  ISO 8601 UTC timestamp of when the document was created.
+</ResponseField>
+
+## Listing documents
+
+Use `GET /v1/documents` to retrieve all documents across your tenant, with optional filters to narrow results.
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/documents \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -G \
+  --data-urlencode "investor_id=inv_01j9x8m2k7qpzwv3t5r6y8n0ab" \
+  --data-urlencode "purpose=account_statement" \
+  --data-urlencode "limit=20"
+```
+
+The response returns a paginated list of document objects alongside a `has_more` flag. Pass the `document_id` of the last item as `starting_after` to fetch the next page.
+
+**Available query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `investor_id` | string | Filter to documents owned by a specific investor |
+| `user_id` | string | Filter to documents owned by a specific user |
+| `purpose` | string | Filter by purpose tag (e.g. `account_statement`, `tax`) |
+| `document_type` | string | Filter by free-form document classifier |
+| `status` | string | Filter by lifecycle status (`UPLOADED`, `ACCEPTED`, `REJECTED`, etc.) |
+| `limit` | integer | Results per page (1–200, default 50) |
+| `starting_after` | string | Cursor for the next page — pass the last `document_id` from the previous response |
+
+## What you can do with documents
+
+Once you have a document object, you can either download the file bytes or trigger an email delivery directly to the investor.
+
+<CardGroup cols={2}>
+  <Card title="Retrieve Documents" icon="file-arrow-down" href="/documents/retrieving-documents">
+    List documents with filters, fetch a single document by ID, and download the raw file bytes.
+  </Card>
+  <Card title="Email Documents" icon="envelope" href="/documents/emailing-documents">
+    Deliver statements, tax forms, and confirmations directly to the investor's email address on file.
+  </Card>
+</CardGroup>

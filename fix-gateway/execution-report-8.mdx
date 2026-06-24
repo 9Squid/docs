@@ -1,0 +1,148 @@
+---
+title: "Execution Report (MsgType=8): Order Updates and Fills"
+sidebarTitle: "Execution Report"
+description: "The Execution Report (MsgType=8) is sent by the Buildmarkets FIX gateway for order acknowledgements, fills, partial fills, cancellations, and rejections."
+---
+
+The Execution Report (`MsgType=8`) is the primary inbound message you receive from the Buildmarkets gateway. It is sent in response to every significant order lifecycle event: acknowledgement of a new order, each partial fill, the final fill, a cancellation confirmation, an order status response, and an outright rejection. Your system must process Execution Reports reliably — they are the authoritative record of order state from the gateway's perspective.
+
+## Field Reference
+
+| Tag | Field | Required | Type | Description |
+|---|---|---|---|---|
+| 1 | Account | Y | String | Trading account identifier |
+| 6 | AvgPx | N | Price | Volume-weighted average fill price across all fills to date |
+| 11 | ClOrdID | Y | String | Your client-assigned order ID from the original order message |
+| 14 | CumQty | Y | Qty | Total quantity filled so far across all fills |
+| 17 | ExecID | Y | String | Unique execution identifier assigned by the gateway |
+| 19 | ExecRefID | N | String | Reference execution ID — used for Trade Cancel and Trade Correct events |
+| 31 | LastPx | N | Price | Fill price of this specific execution |
+| 32 | LastQty | N | Qty | Fill quantity of this specific execution |
+| 37 | OrderID | Y | String | Gateway-assigned order identifier — retain this for cancel and status requests |
+| 38 | OrderQty | Y | Qty | Original order quantity as submitted |
+| 39 | OrdStatus | N | Char | Current aggregate status of the order — see table below |
+| 40 | OrdType | Y | Char | Order type: `1`=Market, `2`=Limit, `3`=Stop, `4`=Stop Limit |
+| 41 | OrigClOrdID | C | String | Original `ClOrdID` — present on cancel confirmations and replaces |
+| 44 | Price | N | Price | Limit or stop price from the original order |
+| 54 | Side | Y | Char | Order side: `1`=Buy, `2`=Sell |
+| 55 | Symbol | Y | String | Ticker symbol |
+| 58 | Text | N | String | Human-readable description of the event or rejection reason |
+| 59 | TimeInForce | Y | Char | `0`=Day, `1`=GTC |
+| 60 | TransactTime | Y | UTCTimestamp | Timestamp of this execution event |
+| 103 | OrdRejReason | N | Int | Coded rejection reason — see table below |
+| 150 | ExecType | N | Char | What happened in this specific report — see table below |
+| 151 | LeavesQty | N | Qty | Remaining unfilled quantity |
+| 167 | SecurityType | N | String | `CS`=Common Stock, `OPT`=Option, `MLEG`=Multileg |
+
+## ExecType Values (Tag 150)
+
+`ExecType` describes the event that triggered this specific Execution Report. Use this tag — not `OrdStatus` — to determine what action occurred.
+
+| Value | Name | Description |
+|---|---|---|
+| `0` | New | Order acknowledged and accepted by the gateway |
+| `1` | Partial Fill | *(Legacy)* — use `F` (Trade) in FIX 4.4 for partial fills |
+| `2` | Fill | Order fully filled |
+| `3` | Done for Day | Day order expired at market close |
+| `4` | Cancelled | Cancel request confirmed |
+| `5` | Replace | Order replaced (not currently supported) |
+| `6` | Pending Cancel | Cancel request received, pending processing |
+| `7` | Stopped | Order stopped |
+| `8` | Rejected | Order rejected by gateway or exchange |
+| `9` | Suspended | Order suspended |
+| `A` | Pending New | Order queued, not yet active |
+| `B` | Calculated | Calculated order |
+| `C` | Expired | Order has expired |
+| `D` | Restated | Order restated (e.g. after corporate action) |
+| `E` | Pending Replace | Replace pending |
+| `F` | Trade | Fill or partial fill event |
+| `G` | Trade Correct | Correction to a prior fill |
+| `H` | Trade Cancel | Cancellation of a prior fill |
+| `I` | Order Status | Response to an Order Status Request (`MsgType=H`) |
+
+## OrdStatus Values (Tag 39)
+
+`OrdStatus` reflects the current aggregate state of the order after this event is applied.
+
+| Value | Name | Description |
+|---|---|---|
+| `0` | New | Order active, no fills yet |
+| `1` | Partially Filled | Order partially filled, quantity remains open |
+| `2` | Filled | Order fully filled |
+| `3` | Done for Day | Day order expired |
+| `4` | Canceled | Order cancelled |
+| `5` | Replaced | Order replaced |
+| `6` | Pending Cancel | Pending cancel acknowledgement |
+| `7` | Stopped | Order stopped |
+| `8` | Rejected | Order rejected |
+| `9` | Suspended | Order suspended |
+| `A` | Pending New | Order awaiting acknowledgement |
+| `B` | Calculated | Calculated |
+| `C` | Expired | Order expired |
+| `E` | Pending Replace | Replace pending |
+
+## OrdRejReason Values (Tag 103)
+
+This tag is populated when `ExecType=8` (Rejected). Check Tag 58 (`Text`) for the human-readable explanation.
+
+| Value | Reason |
+|---|---|
+| `0` | Broker/exchange option |
+| `1` | Unknown symbol |
+| `2` | Exchange closed |
+| `3` | Order exceeds limit |
+| `4` | Too late to enter |
+| `5` | Unknown order |
+| `6` | Duplicate order (duplicate `ClOrdID`) |
+| `7` | Duplicate of verbally communicated order |
+| `8` | Stale order |
+| `9` | Trade along required |
+| `10` | Invalid investor ID |
+| `11` | Unsupported order characteristic |
+| `12` | Surveillance option |
+| `13` | Incorrect quantity |
+| `14` | Incorrect allocated quantity |
+| `15` | Unknown account |
+| `99` | Other |
+
+## Examples
+
+### Order Acknowledged
+
+```fix
+8=FIX.4.4|35=8|49=BUILDMARKETS|56=CLIENT1|34=50|52=20260212-14:30:00.500|
+1=ACC123456789|11=ORD-20260212-001|37=BMKT-78450|17=EXEC-001|55=AAPL|
+167=CS|54=1|38=100|40=1|39=0|150=0|14=0|151=100|59=0|
+60=20260212-14:30:00.500|10=067|
+```
+
+### Partial Fill — 60 of 100 shares filled at $228.50
+
+```fix
+8=FIX.4.4|35=8|49=BUILDMARKETS|56=CLIENT1|34=51|52=20260212-14:30:01.200|
+1=ACC123456789|11=ORD-20260212-001|37=BMKT-78450|17=EXEC-002|55=AAPL|
+167=CS|54=1|38=100|40=1|39=1|150=F|31=228.50|32=60|14=60|151=40|6=228.50|
+59=0|60=20260212-14:30:01.200|10=089|
+```
+
+### Order Fully Filled — remaining 40 shares at $228.75
+
+```fix
+8=FIX.4.4|35=8|49=BUILDMARKETS|56=CLIENT1|34=52|52=20260212-14:30:02.100|
+1=ACC123456789|11=ORD-20260212-001|37=BMKT-78450|17=EXEC-003|55=AAPL|
+167=CS|54=1|38=100|40=1|39=2|150=F|31=228.75|32=40|14=100|151=0|6=228.60|
+59=0|60=20260212-14:30:02.100|10=101|
+```
+
+### Order Rejected — unknown symbol
+
+```fix
+8=FIX.4.4|35=8|49=BUILDMARKETS|56=CLIENT1|34=53|52=20260212-14:31:00.000|
+1=ACC123456789|11=ORD-20260212-005|37=BMKT-78455|17=EXEC-010|55=XYZ|
+167=CS|54=1|38=100|40=1|39=8|150=8|14=0|151=0|103=1|58=Unknown symbol|
+59=0|60=20260212-14:31:00.000|10=034|
+```
+
+<Warning>
+Always store the gateway-assigned `OrderID` (Tag 37) from the first Execution Report for an order. You will need this value when submitting Order Cancel Requests (Tag 37) and Order Status Requests (Tag 37).
+</Warning>

@@ -1,0 +1,189 @@
+---
+title: "Submit and Track KYC Verification for Investors"
+sidebarTitle: "KYC Verification"
+description: "Trigger KYC for a new investor, poll or receive webhooks for the outcome, and handle approval, rejection, and manual review states."
+---
+
+When you create an investor account, Buildmarkets automatically initiates a KYC (Know Your Customer) compliance workflow. The workflow runs identity verification and sanctions screening in parallel. Your job is to track the outcome and route the user appropriately — either forward to funding and trading if approved, or surface a clear message if review is needed or verification fails.
+
+The compliance workflow is non-blocking on the API call itself: `POST /v1/investors` returns immediately with `status: onboarding` while checks run asynchronously. Depending on the KYC provider's response, the workflow typically resolves within seconds to a few minutes for straightforward cases.
+
+## KYC workflow overview
+
+After account creation, each investor gets a compliance workflow with one or more checks:
+
+| Check type | Description |
+|------------|-------------|
+| `identity_verification` | Verifies name, date of birth, and SSN/tax ID against government records |
+| `screening` | Screens the investor against OFAC, PEP, and adverse media lists |
+| `risk_assessment` | Assigns a risk level based on screening results |
+
+The overall workflow reaches one of these terminal states:
+
+| Workflow status | Investor status | Meaning |
+|-----------------|-----------------|---------|
+| `approved` | `active` | All checks passed; account is ready |
+| `awaiting_review` | `action_required` | Manual compliance review underway |
+| `declined` | `closed` | KYC failed; account cannot be opened |
+
+<Steps>
+  <Step title="Retrieve the current compliance status">
+    After creating the investor, retrieve the compliance workflow status using `GET /v1/investors/{investor_id}/compliance`. This returns the most recent workflow and the status of each individual check.
+
+    ```bash
+    curl https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/compliance \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET"
+    ```
+
+    An in-progress workflow looks like this:
+
+    ```json
+    {
+      "object": "compliance_workflow",
+      "livemode": false,
+      "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "workflow_status": "IN_PROGRESS",
+      "workflow_type": "kyc",
+      "risk_level": null,
+      "status": "running",
+      "checks": [
+        {
+          "type": "identity_verification",
+          "status": "pending",
+          "completed_at": null
+        },
+        {
+          "type": "screening",
+          "status": "pending",
+          "completed_at": null
+        }
+      ],
+      "created_at": "2026-03-15T10:00:00.000Z",
+      "updated_at": "2026-03-15T10:00:00.000Z"
+    }
+    ```
+
+    An approved workflow looks like this:
+
+    ```json
+    {
+      "object": "compliance_workflow",
+      "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "workflow_status": "APPROVED",
+      "workflow_type": "kyc",
+      "risk_level": "low",
+      "status": "approved",
+      "checks": [
+        {
+          "type": "identity_verification",
+          "status": "clear",
+          "completed_at": "2026-03-15T10:05:00.000Z"
+        },
+        {
+          "type": "screening",
+          "status": "clear",
+          "completed_at": "2026-03-15T10:05:00.000Z"
+        }
+      ],
+      "created_at": "2026-03-15T10:00:00.000Z",
+      "updated_at": "2026-03-15T10:05:00.000Z"
+    }
+    ```
+  </Step>
+
+  <Step title="Submit a compliance check result (async providers)">
+    If your integration uses an asynchronous identity verification provider such as Persona, you may receive the verification result via a callback or SDK event rather than a webhook. In that case, forward the provider's completion payload to Buildmarkets using `POST /v1/investors/{investor_id}/compliance/submit`.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/compliance/submit \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "workflow_id": "cw_01j9x8m2k7qpzwv3t5r6y8n0cd",
+        "check_type": "identity_verification",
+        "provider_payload": {
+          "event_type": "inquiry.approved",
+          "inquiry_id": "inq_abc123def456",
+          "status": "approved"
+        }
+      }'
+    ```
+
+    This is only needed when using SDK-based async providers. If Buildmarkets handles the KYC provider flow directly, this step is not required.
+  </Step>
+
+  <Step title="Listen for outcome webhooks">
+    The most reliable way to handle KYC outcomes is to subscribe to webhook events rather than polling. Configure your webhook endpoint to receive `investor.updated` events and inspect the `status` field in the payload.
+
+    Key events to subscribe to:
+
+    | Webhook event | Meaning |
+    |---------------|---------|
+    | `investor.updated` | Investor status changed (check `status` field) |
+    | `investor.kyc.approved` | KYC workflow completed successfully |
+    | `investor.kyc.declined` | KYC workflow was declined |
+
+    Register your webhook endpoint via `POST /v1/webhooks` with the events you want to receive.
+  </Step>
+
+  <Step title="Handle each KYC outcome">
+    Once the workflow reaches a terminal state, route the user based on the investor's `status` field:
+
+    **Approved (`status: active`)** — KYC passed. Unlock bank linking and funding in your UI. Proceed to `POST /v1/investors/{investor_id}/funding-sources/plaid/link-token` to start the bank linking flow.
+
+    **Manual review (`status: action_required`)** — A compliance analyst is reviewing the account. Inform the user that their account is under review and to expect a follow-up. Do not allow funding or trading until `status` transitions to `active`. You may need to collect additional documents — check the compliance workflow for guidance.
+
+    **Declined (`status: closed`)** — The investor's KYC was declined. Display a message explaining that you were unable to open an account and provide a support contact. Do not retry automatically.
+  </Step>
+
+  <Step title="Restart a declined workflow (if eligible)">
+    If an investor's compliance workflow was declined and you want to give them an opportunity to re-verify (for example, after collecting corrected identity information), restart the workflow using `POST /v1/investors/{investor_id}/compliance/restart`.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/compliance/restart \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET"
+    ```
+
+    This creates a fresh compliance workflow with new check statuses and SDK handoff data. Only use this endpoint after confirming with your compliance team that a re-verification is appropriate.
+
+    <Warning>
+      Restarting the compliance workflow replaces the investor's current workflow. Only call this endpoint when you have a clear reason for re-verification, such as a data entry error or an expired identity document.
+    </Warning>
+  </Step>
+</Steps>
+
+## Outcome handling summary
+
+| KYC outcome | Investor `status` | Recommended action |
+|-------------|-------------------|-------------------|
+| All checks passed | `active` | Proceed to bank linking and funding |
+| Manual review needed | `action_required` | Notify user; await resolution; possibly collect documents |
+| KYC declined | `closed` | Surface error to user; provide support contact |
+
+## Sandbox test cases
+
+Use these SSN suffixes in sandbox to trigger specific KYC outcomes. The SSN prefix does not matter.
+
+| SSN suffix | Outcome |
+|------------|---------|
+| `0001` | Instant approval → `active` |
+| `0002` | Manual review → `action_required` |
+| `0003` | Declined → `closed` |
+
+<Note>
+  In sandbox, KYC results resolve within a few seconds regardless of the SSN used. In production, standard cases typically complete in seconds to minutes; complex cases may enter manual review and take longer.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Bank Linking" href="/guides/self-directed/bank-linking">
+    Connect a bank account once the investor's status is active.
+  </Card>
+  <Card title="Account Onboarding" href="/guides/self-directed/account-onboarding">
+    Review the full field reference for creating an investor.
+  </Card>
+</CardGroup>

@@ -1,0 +1,240 @@
+---
+title: "Buildmarkets Error Code Reference and Troubleshooting"
+sidebarTitle: "Error Codes"
+description: "Complete catalog of Buildmarkets BLUM error codes by HTTP status — with causes, meanings, and recommended actions for each error type."
+---
+
+Every Buildmarkets API error returns a structured JSON body alongside a standard HTTP status code. The combination of the status code and the machine-readable `code` field gives you everything you need to handle errors precisely in your integration — from retrying transient failures to surfacing the right message to your end users.
+
+## Error response format
+
+All error responses use the following envelope shape:
+
+```json
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "BLUM-400-002",
+    "message": "Required field 'symbol' is missing.",
+    "param": "symbol",
+    "doc_url": "https://docs.buildmarkets.com/resources/error-codes",
+    "request_log_url": "https://dashboard.buildmarkets.com/logs/req_abc123xyz"
+  }
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `type` | Broad error category — branch on this for top-level handling (`invalid_request_error`, `authentication_error`, `permission_error`, `not_found_error`, `conflict_error`, `rate_limit_error`, `api_error`) |
+| `code` | Buildmarkets-specific `BLUM-{STATUS}-{SEQ}` code — use this for precise programmatic handling |
+| `message` | Human-readable developer-facing description |
+| `param` | (When applicable) The request field that caused the error |
+| `doc_url` | Link to documentation for this error |
+| `request_log_url` | Deep link to the request log in your Partner Dashboard — include this when contacting support |
+
+## Error code structure
+
+Buildmarkets error codes follow the pattern `BLUM-{STATUS}-{SEQ}`:
+
+- **`BLUM`** — Buildmarkets platform prefix
+- **`{STATUS}`** — The HTTP status code (400, 401, 403, 404, 409, 422, 429, 500)
+- **`{SEQ}`** — A sequential number distinguishing errors within the same HTTP status
+
+For example, `BLUM-422-001` is the first 422-class error (insufficient buying power), while `BLUM-422-003` is a different unprocessable condition (account not approved for trading).
+
+## Error codes by HTTP status
+
+### 400 Bad Request
+
+The request body or parameters are invalid. These errors are deterministic — fix the request before retrying.
+
+| Code | `type` | Cause | Action |
+| --- | --- | --- | --- |
+| `BLUM-400-001` | `invalid_request_error` | Malformed JSON body or missing `Content-Type: application/json` header | Validate request body JSON syntax and headers |
+| `BLUM-400-002` | `invalid_request_error` | A required field is missing from the request body | Add the missing field — check `param` for the field path |
+| `BLUM-400-003` | `invalid_request_error` | A field value is not in the allowed enum set | Use a valid enum value — check the API reference for allowed values |
+| `BLUM-400-004` | `invalid_request_error` | A field value has an incorrect format (e.g., date, phone, email) | Correct the format — dates must be ISO 8601, phone numbers E.164 |
+| `BLUM-400-005` | `invalid_request_error` | A field value fails a range or length constraint | Check the API reference for min/max constraints on the field |
+| `BLUM-400-012` | `invalid_request_error` | Target allocation does not sum to 100% (IPS creation) | Ensure all asset class allocations sum to exactly 100% |
+| `BLUM-400-014` | `invalid_request_error` | Auto-invest amount is below the platform minimum | Increase the scheduled investment amount |
+
+### 401 Unauthorized
+
+Authentication failed. The request did not include valid credentials.
+
+| Code | `type` | Cause | Action |
+| --- | --- | --- | --- |
+| `BLUM-401-001` | `authentication_error` | Missing or malformed `Authorization` header | Ensure you are sending HTTP Basic Auth with `API_KEY:API_SECRET` Base64-encoded |
+| `BLUM-401-002` | `authentication_error` | API key does not exist or has been revoked | Generate a new API key in the Partner Dashboard |
+| `BLUM-401-003` | `authentication_error` | API secret is incorrect for the given API key | Verify you are using the correct secret for this key |
+
+### 403 Forbidden
+
+Authentication succeeded but the API key lacks the required scope for this endpoint.
+
+| Code | `type` | Cause | Action |
+| --- | --- | --- | --- |
+| `BLUM-403-001` | `permission_error` | API key is valid but does not have the scope required for this endpoint | Contact support to request the required scope for your integration |
+
+### 404 Not Found
+
+The requested resource does not exist or is not accessible to your API key.
+
+| Code | `type` | Cause | Action |
+| --- | --- | --- | --- |
+| `BLUM-404-001` | `not_found_error` | No investor exists for the given `investor_id` | Verify the `investor_id` — it should be prefixed `inv_…` |
+| `BLUM-404-002` | `not_found_error` | No order exists for the given `order_id` | Verify the `order_id` — it should be prefixed `ord_…` |
+| `BLUM-404-003` | `not_found_error` | No document exists for the given `document_id` | Verify the `document_id` — it should be prefixed `doc_…` |
+| `BLUM-404-004` | `not_found_error` | No funding source exists for the given ID | Verify the funding source ID — it should be prefixed `fs_…` |
+| `BLUM-404-005` | `not_found_error` | No deposit exists for the given `deposit_id` | Verify the `deposit_id` — it should be prefixed `dep_…` |
+| `BLUM-404-006` | `not_found_error` | No withdrawal exists for the given `withdrawal_id` | Verify the `withdrawal_id` — it should be prefixed `wdr_…` |
+| `BLUM-404-007` | `not_found_error` | Market or exchange code not found | Verify the market MIC code (e.g., `XNAS`, `XNSA`) |
+| `BLUM-404-011` | `not_found_error` | No Investment Policy Statement found for this account | Create an IPS before calling validate or portfolio management endpoints |
+| `BLUM-404-012` | `not_found_error` | No auto-invest schedule found for the given ID | Verify the schedule ID |
+
+### 409 Conflict
+
+The request conflicts with the current state of the resource. Do not retry without resolving the conflict.
+
+| Code | `type` | Cause | Action |
+| --- | --- | --- | --- |
+| `BLUM-409-001` | `conflict_error` | An order with this `client_order_id` already exists | This is likely a safe retry — fetch the existing order using the same `client_order_id` instead |
+| `BLUM-409-002` | `conflict_error` | Investor has open positions and cannot be closed | Liquidate all positions before closing the investor account |
+| `BLUM-409-003` | `conflict_error` | Investor has a non-zero wallet balance and cannot be closed | Withdraw all funds before closing the investor account |
+| `BLUM-409-004` | `conflict_error` | Investor account has already been closed | No action needed — the account is already in a terminal state |
+| `BLUM-409-005` | `conflict_error` | Investor is already enrolled in the cash sweep program | Check current enrollment status before calling enroll again |
+| `BLUM-409-010` | `conflict_error` | Portfolio has active rebalancing in progress | Wait for the current rebalance to complete before initiating another |
+
+### 422 Unprocessable Entity
+
+The request is syntactically valid but fails a business rule. Fix the underlying condition before retrying.
+
+| Code | `type` | Cause | Action |
+| --- | --- | --- | --- |
+| `BLUM-422-001` | `invalid_request_error` | Insufficient buying power to place this order | Reduce the order size or wait for additional funds to settle |
+| `BLUM-422-002` | `invalid_request_error` | Investor account is not in `active` status | Complete KYC and funding before placing orders or initiating withdrawals |
+| `BLUM-422-003` | `invalid_request_error` | Account is not approved for trading | Verify compliance status — check `GET /v1/investors/{investor_id}/compliance` |
+| `BLUM-422-004` | `invalid_request_error` | Market is closed and the order type does not support extended hours | Use `extended_hours: true` or wait for the next market session |
+| `BLUM-422-005` | `invalid_request_error` | The requested symbol is not available for trading on this platform | Check `tradable: true` in the asset detail before placing orders |
+| `BLUM-422-006` | `invalid_request_error` | Order cannot be modified or cancelled in its current state | Check `status` — only `pending` orders can be cancelled |
+| `BLUM-422-007` | `invalid_request_error` | Insufficient settled cash balance for this withdrawal | Wait for pending deposits to settle before withdrawing |
+| `BLUM-422-008` | `invalid_request_error` | KYC was rejected — account cannot be approved | Display rejection reason to the user and offer re-verification if applicable |
+| `BLUM-422-009` | `invalid_request_error` | KYC is still pending — this action requires an approved account | Poll compliance status and retry when `status` is `approved` |
+| `BLUM-422-010` | `invalid_request_error` | ACH relationship has not been approved yet | Wait for the funding source status to become `active` before initiating a transfer |
+
+### 429 Too Many Requests
+
+You have exceeded the rate limit. Wait before retrying.
+
+| Code | `type` | Cause | Action |
+| --- | --- | --- | --- |
+| `BLUM-429-001` | `rate_limit_error` | Per-second rate limit exceeded (10 req/s per API key) | Wait for the number of seconds in the `Retry-After` response header |
+| `BLUM-429-002` | `rate_limit_error` | Per-minute rate limit exceeded (300 req/min per API key) | Back off for at least 60 seconds and reduce request frequency |
+
+The 429 response includes a `Retry-After` header with the number of seconds to wait:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 2
+Content-Type: application/json
+
+{
+  "error": {
+    "type": "rate_limit_error",
+    "code": "BLUM-429-001",
+    "message": "Rate limit exceeded. Retry after 2 seconds."
+  }
+}
+```
+
+<Tip>
+  Retryable errors — `429` and all `5xx` errors — should be retried with exponential backoff. A good starting strategy is 1s → 2s → 4s → 8s with jitter. After 3–5 failed retries on a 5xx, alert your operations team and log the `request_log_url` for investigation.
+</Tip>
+
+### 500 Internal Server Error
+
+An unexpected error occurred on the Buildmarkets side. These are transient and safe to retry.
+
+| Code | `type` | Cause | Action |
+| --- | --- | --- | --- |
+| `BLUM-500-001` | `api_error` | Unexpected server error | Retry with exponential backoff — include the `request_log_url` if the issue persists |
+| `BLUM-503-001` | `api_error` | A downstream service or dependency is temporarily unavailable | Check [status.buildmarkets.com](https://status.buildmarkets.com) and retry with backoff |
+
+## Rate limits
+
+| Limit | Default |
+| --- | --- |
+| Requests per second (per API key) | 10 |
+| Requests per minute (per API key) | 300 |
+| Requests per day (per partner) | Contact Buildmarkets |
+
+## Retry strategy
+
+Not all errors should be retried. Use this table to decide:
+
+| Status | Retry? | Strategy |
+| --- | --- | --- |
+| `400` | ❌ No | Fix the request before retrying |
+| `401` | ❌ No | Fix credentials or regenerate API key |
+| `403` | ❌ No | Contact support to request required scope |
+| `404` | ❌ No | Verify the resource ID |
+| `409` | ❌ No | Resolve the conflict (e.g., fetch existing order) |
+| `422` | ❌ No | Fix the underlying business condition |
+| `429` | ✅ Yes | Wait for `Retry-After` seconds, then retry |
+| `500` | ✅ Yes | Exponential backoff: 1s, 2s, 4s, 8s |
+| `503` | ✅ Yes | Exponential backoff: 1s, 2s, 4s, 8s |
+
+## Troubleshooting common errors
+
+| Symptom | Most likely code | Fix |
+| --- | --- | --- |
+| Every request returns 401 | `BLUM-401-001` | Verify you are Base64-encoding `API_KEY:API_SECRET` and sending it as `Authorization: Basic <encoded>` |
+| Order placement fails with 422 | `BLUM-422-001` | Check `buying_power` on the investor before placing — it must be ≥ estimated order value |
+| Duplicate order error on retry | `BLUM-409-001` | On 409, fetch the existing order using `GET /v1/investors/{investor_id}/orders` filtered by `client_order_id` |
+| Account creation returns 400 on `signed_agreements` | `BLUM-400-002` | `signed_agreements` requires at least `investor_agreement` and `margin_disclosure_acknowledged` |
+| Withdrawal fails with 422 | `BLUM-422-007` | Check `cash_withdrawable` on the investor — this reflects only settled funds, not pending deposits |
+| Compliance check returns 422 | `BLUM-422-009` | Poll `GET /v1/investors/{investor_id}/compliance` and wait for `status: approved` |
+
+## Handling errors in code
+
+Use the `type` field for broad branching and the `code` field for specific handling:
+
+```javascript
+const response = await fetch(`${BASE_URL}/investors/${investorId}/orders`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Basic ${btoa(`${apiKey}:${apiSecret}`)}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(orderPayload),
+});
+
+if (!response.ok) {
+  const { error } = await response.json();
+
+  switch (error.code) {
+    case 'BLUM-422-001':
+      // Insufficient buying power — surface to the user
+      throw new InsufficientFundsError(error.message);
+
+    case 'BLUM-409-001':
+      // Duplicate client_order_id — likely a safe retry, fetch existing order
+      return fetchExistingOrder(investorId, orderPayload.client_order_id);
+
+    case 'BLUM-429-001':
+    case 'BLUM-429-002': {
+      // Rate limited — wait and retry
+      const retryAfter = parseInt(response.headers.get('Retry-After') || '1', 10);
+      await sleep(retryAfter * 1000);
+      return placeOrder(investorId, orderPayload); // recursive retry
+    }
+
+    default:
+      // Log the request_log_url for support investigation
+      console.error('Unexpected API error', error.code, error.request_log_url);
+      throw new APIError(error.message, error.code);
+  }
+}
+```
+
+Always log the `request_log_url` from error responses. When you contact Buildmarkets support, include this URL so the team can trace the exact request through internal systems.

@@ -1,0 +1,177 @@
+---
+title: "Test Integrations Effectively in the Buildmarkets Sandbox"
+sidebarTitle: "Testing"
+description: "Use the Buildmarkets sandbox to simulate every production workflow — KYC outcomes, order fills, and ACH transfers — without moving real money."
+---
+
+The Buildmarkets sandbox is a fully functional replica of the production environment running against simulated custodian infrastructure. You can create investor accounts, trigger every KYC outcome, place orders, initiate deposits and withdrawals, and receive webhook events — all without touching real money or real markets. Use the sandbox to build and validate your entire integration before you go live.
+
+<Note>
+Sandbox data is completely isolated from production. No real accounts, funds, or orders are ever created or affected by sandbox activity. It is safe to experiment freely, create test data, and simulate failure scenarios.
+</Note>
+
+---
+
+## Sandbox base URL
+
+Point all your sandbox requests to:
+
+```
+https://dev-tapp-api.tappengine.com
+```
+
+Every endpoint, request format, and response schema is identical between sandbox and production. The only differences are the base URL and your API credentials.
+
+---
+
+## Sandbox API keys
+
+Buildmarkets issues separate API key pairs for sandbox and production. Your sandbox keys only work against `https://dev-tapp-api.tappengine.com` and your production keys only work against `https://api.tappengine.com`. Never use production keys in sandbox requests or vice versa.
+
+Include your sandbox credentials in every request:
+
+```bash
+-H "X-API-Key: YOUR_SANDBOX_API_KEY" \
+-H "X-API-Secret: YOUR_SANDBOX_API_SECRET"
+```
+
+---
+
+## Simulating KYC outcomes
+
+In the sandbox, KYC review is triggered automatically when you create an investor account. The outcome is determined by the last four digits of the SSN you supply during account creation — no manual review or waiting period applies.
+
+| SSN suffix | KYC outcome |
+|------------|-------------|
+| `0001` | `APPROVED` — account becomes active immediately |
+| `0002` | `REJECTED` — account requires action |
+| `0003` | `MANUAL_REVIEW` — account is placed under review |
+
+For example, submitting SSN `111-22-0001` results in an immediately approved account. Use `111-22-0002` to simulate a rejection and test the path where your application prompts the investor to provide additional documentation.
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors \
+  -H "X-API-Key: YOUR_SANDBOX_API_KEY" \
+  -H "X-API-Secret: YOUR_SANDBOX_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "email": "jane.doe@example.com",
+    "date_of_birth": "1990-05-15",
+    "tax_id": "111-22-0001",
+    "tax_id_type": "SSN"
+  }'
+```
+
+---
+
+## Simulated order fills
+
+In the sandbox, orders fill near-instantly. You do not need to wait for market hours or real execution conditions. Place a market order and the fill event fires within seconds, giving you a fast feedback loop when testing your order placement and webhook handling logic.
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders \
+  -H "X-API-Key: YOUR_SANDBOX_API_KEY" \
+  -H "X-API-Secret: YOUR_SANDBOX_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbol": "AAPL",
+    "side": "buy",
+    "type": "market",
+    "market_qty": "10",
+    "client_order_id": "test-order-001"
+  }'
+```
+
+---
+
+## Simulated ACH transfers
+
+Deposits and withdrawals in the sandbox complete quickly without going through real ACH rails. No actual funds move. Use sandbox transfers to validate your deposit initiation flow, webhook handling for `transfer.deposit.completed` and `transfer.withdrawal.completed`, and your UI's balance update logic.
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/deposits \
+  -H "X-API-Key: YOUR_SANDBOX_API_KEY" \
+  -H "X-API-Secret: YOUR_SANDBOX_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "1000.00",
+    "currency": "USD",
+    "method": "ach",
+    "funding_source_id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef"
+  }'
+```
+
+---
+
+## Testing checklist
+
+Work through every scenario below before switching your integration to production. Each accordion covers what to test and why it matters.
+
+<Accordion title="KYC outcomes">
+Test all three KYC paths to make sure your application handles every account state gracefully:
+
+- Submit an account with SSN suffix `0001` and verify the investor becomes active and trading is enabled
+- Submit with `0002` and verify your UI surfaces an appropriate rejection message and prompts the user to contact support
+- Submit with `0003` and verify your application correctly displays a "pending review" state and disables trading until the account is approved
+</Accordion>
+
+<Accordion title="Deposit and withdrawal flows">
+- Initiate a deposit and confirm your webhook handler receives `transfer.deposit.completed` and updates the investor's displayed balance
+- Initiate a withdrawal and confirm `transfer.withdrawal.completed` fires and the balance decreases accordingly
+- Test failure paths: attempt a withdrawal exceeding the available balance and verify your application handles the `400` error response
+</Accordion>
+
+<Accordion title="Order placement and lifecycle">
+- Place a market buy order and verify it transitions to `filled` status and triggers an `order.filled` webhook event
+- Place a limit order, then cancel it with `POST /v1/investors/{investor_id}/orders/{order_id}/cancel`, and verify the cancellation is reflected correctly
+- Attempt to place an order with insufficient funds and verify your application handles the rejection gracefully
+- Verify that your `client_order_id` idempotency key prevents duplicate orders on retried requests
+</Accordion>
+
+<Accordion title="Webhook delivery">
+- Register a sandbox webhook pointing to a test endpoint (use [ngrok](https://ngrok.com) or a service like [webhook.site](https://webhook.site) to inspect payloads)
+- Trigger each of the key event types — `order.filled`, `transfer.deposit.completed`, `kyc.verification.approved` — and confirm your handler receives and processes them correctly
+- Verify your deduplication logic by sending the same event twice and confirming it is only processed once
+- Test your `2xx` response timing: confirm your handler returns `200` within 5 seconds for every event type
+</Accordion>
+
+<Accordion title="Error handling">
+- Send requests with missing required fields and verify your application surfaces useful validation messages
+- Use an invalid or expired API key to confirm your integration handles `401 Unauthorized` gracefully
+- Attempt to access a resource that does not exist (e.g., a random UUID as an investor ID) and verify your `404` handling is correct
+- Simulate a downstream timeout by deliberately responding slowly from your webhook endpoint and confirm retry behaviour works as expected
+</Accordion>
+
+---
+
+## Switching to production
+
+Once you have worked through the testing checklist and are satisfied with your sandbox integration, switching to production requires only two changes:
+
+<Steps>
+
+### Replace the base URL
+
+Change every API call from:
+
+```
+https://dev-tapp-api.tappengine.com
+```
+
+to:
+
+```
+https://api.tappengine.com
+```
+
+### Swap to production API credentials
+
+Replace your sandbox `X-API-Key` and `X-API-Secret` values with your production credentials. Store them in your environment's secrets manager — never hardcode credentials in source code.
+
+</Steps>
+
+<Warning>
+Double-check that no sandbox API keys remain in your production configuration before going live. Requests authenticated with sandbox keys will be rejected by the production environment.
+</Warning>

@@ -1,0 +1,103 @@
+---
+title: "Buildmarkets Postman Collection: Test Every Endpoint"
+sidebarTitle: "Postman"
+description: "Import the Buildmarkets Postman collection to get pre-built requests for every API endpoint — with authentication, environments, and example payloads included."
+---
+
+The Buildmarkets Postman collection gives you 124 ready-to-run requests organized across 23 folders — one for each API domain. Import it once, configure three environment variables, and you can make authenticated sandbox calls in under two minutes. Every request maps directly to a tag in the OpenAPI spec, so the collection stays in sync with the live API.
+
+## Getting started
+
+<Steps>
+
+<Step title="Import the collection">
+
+Open the [Buildmarkets Postman Collection](https://documenter.getpostman.com/view/40898431/2sBXVo97hh) and click **Run in Postman** to import it directly into your Postman workspace. The collection imports with all 124 requests pre-configured.
+
+</Step>
+
+<Step title="Create a sandbox environment">
+
+In Postman, create a new environment named **Buildmarkets Sandbox** and add these three variables:
+
+| Variable | Value |
+| --- | --- |
+| `baseUrl` | `https://dev-tapp-api.tappengine.com/v1` |
+| `apiKey` | Your sandbox API key |
+| `apiSecret` | Your sandbox API secret |
+
+Select the environment from the dropdown in the top-right corner of Postman before sending any requests.
+
+<Note>
+  Use the sandbox environment (`dev-tapp-api.tappengine.com`) for all testing and development. Sandbox calls are fully simulated — no real accounts are created, no real trades execute, and no real money moves.
+</Note>
+
+</Step>
+
+<Step title="Send your first request">
+
+Open **Assets → List Assets** in the collection sidebar and click **Send**. You should receive a paginated list of tradable assets from the sandbox. This confirms your API key and environment are configured correctly.
+
+</Step>
+
+<Step title="Update collection variables as you go">
+
+As you create resources, update the corresponding collection variable so that subsequent requests in the same flow reference the correct IDs automatically.
+
+</Step>
+
+</Steps>
+
+## Collection contents
+
+The collection is organized by API domain, with each folder mapping directly to an OpenAPI tag.
+
+| Folder | Requests |
+| --- | --- |
+| **Investors** | Create, list, get, and close investors; wallets, transactions, portfolio chart, trusted contact |
+| **Compliance** | Submit a check result, restart a workflow, poll workflow status |
+| **Funding Sources** | List, connect, and disconnect funding sources; Plaid Link token; PATCH wire-payout details |
+| **Transfers** | Create, list, get, and cancel deposits and withdrawals; download wire-details PDF |
+| **Trading** | Order estimates, place, list, get, and cancel orders |
+| **Positions** | List positions; get position detail |
+| **Assets** | Search, list, get-by-symbol, historical chart bars |
+| **Markets** | Reference data: status, calendar, halts, sessions |
+| **Market Data** | Quotes, snapshots, bars, search (paywalled product) |
+| **Document Management** | Upload, list, get, download, and delete documents |
+| **Webhooks** | Register, list, update, and delete webhooks; list event types |
+| **Investor Profile / Dependents / Risk Assessment / Goals / Life Events / External Accounts / Financial Plan / Investment Policy** | Wealth platform onboarding and planning |
+| **Portfolio Management / Auto-Invest / Insights & Recommendations / Reports** | Wealth platform portfolio management |
+
+**Total: 23 folders, 124 requests.**
+
+## Collection variables
+
+After creating a resource, update the matching collection variable so downstream requests in the same flow use the correct ID automatically.
+
+| Variable | Set after | Example value |
+| --- | --- | --- |
+| `investor_id` | Creating an investor | `inv_01j9x8m2k7…` |
+| `document_id` | Uploading a document | `doc_01j9x8m2k7…` |
+| `order_id` | Placing an order | `ord_01j9x8m2k7…` |
+| `deposit_id` | Creating a deposit | `dep_01j9x8m2k7…` |
+| `withdrawal_id` | Creating a withdrawal | `wdr_01j9x8m2k7…` |
+| `id` | Connecting a funding source | `fs_01j9x8m2k7…` |
+| `webhook_id` | Registering a webhook | UUID |
+| `portfolio_id` | Creating a portfolio | `pf_01j9x8m2k7…` |
+
+<Tip>
+  Use Postman's **Tests** tab to write a post-request script that automatically extracts the ID from each response and sets the corresponding collection variable. This lets you chain requests end-to-end without manual copy-pasting between calls.
+</Tip>
+
+## Switching to production
+
+When your sandbox testing is complete and you have received production credentials, create a second environment for production.
+
+1. Create a new Postman environment named **Buildmarkets Production**
+2. Set `baseUrl` to `https://api.tappengine.com/v1`
+3. Enter your production `apiKey` and `apiSecret`
+4. Select the production environment from the dropdown before sending requests
+
+<Warning>
+  Production requests create real accounts and execute real trades against live markets. Complete your end-to-end sandbox testing and obtain production access approval before switching environments. See the Going Live guide for the full production readiness checklist.
+</Warning>

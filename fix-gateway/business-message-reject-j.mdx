@@ -1,0 +1,64 @@
+---
+title: "Business Message Reject (MsgType=j): Application Errors"
+sidebarTitle: "Message Reject"
+description: "The Business Message Reject (MsgType=j) signals that the gateway received a valid FIX message but cannot process it due to a business-level rule violation."
+---
+
+The Business Message Reject (`MsgType=j`) is sent by the Buildmarkets gateway when it receives a message that is structurally valid FIX — correct syntax, required tags present, proper checksum — but cannot be processed because of a business rule or application-level constraint. This is different from a Session Reject (`MsgType=3`), which is issued for structural or session-level problems such as a missing header tag or a checksum mismatch.
+
+When you receive a Business Message Reject, the order or request described in the rejected message was **not** created or executed. You must resolve the underlying issue before resubmitting.
+
+## Session Reject vs. Business Message Reject
+
+| Aspect | Session Reject (MsgType=3) | Business Message Reject (MsgType=j) |
+|---|---|---|
+| Trigger | Structural or session-level error | Valid FIX structure, but business rule violation |
+| Examples | Missing required header tag, bad checksum, invalid tag value type | Insufficient buying power, options trading not enabled, invalid account |
+| Message resent? | No — rejected messages are not resent | No — the original request was not processed |
+| Action required | Fix the FIX message format or session configuration | Resolve the business condition and resubmit |
+
+## Field Reference
+
+| Tag | Field | Required | Type | Description |
+|---|---|---|---|---|
+| 45 | RefSeqNum | N | Int | Sequence number of the message being rejected |
+| 49 | SenderCompID | Y | String | Gateway's `SenderCompID` (i.e. Buildmarkets's identifier) |
+| 56 | TargetCompID | Y | String | Your `SenderCompID` |
+| 58 | Text | N | String | Human-readable description of the rejection reason |
+| 372 | RefMsgType | Y | String | `MsgType` of the message being rejected (e.g. `D`, `AB`, `F`) |
+| 379 | BusinessRejectRefID | N | String | The `ClOrdID` or other reference ID from the rejected message |
+| 380 | BusinessRejectReason | N | Int | Coded reason — see table below |
+
+## BusinessRejectReason Values (Tag 380)
+
+| Value | Name | Common Causes |
+|---|---|---|
+| `0` | Other | General rejection not covered by another code |
+| `1` | Unknown ID | The referenced `ClOrdID` or `OrderID` is not known |
+| `2` | Unknown Security | The symbol or security identifier is not recognised |
+| `3` | Unsupported Message Type | The `MsgType` is valid FIX but not supported by this gateway |
+| `4` | Application Not Available | The gateway is temporarily unable to process requests |
+| `5` | Conditionally Required Field Missing | A field required given the combination of other field values is absent |
+| `6` | Not Authorised | Your account is not permitted to perform this action (e.g. options trading not enabled) |
+| `7` | DeliverTo Firm Not Available | *(Not applicable to Buildmarkets gateway)* |
+
+## Example
+
+```fix
+8=FIX.4.4|35=j|49=BUILDMARKETS|56=CLIENT1|34=70|52=20260212-14:35:00.000|
+372=D|379=ORD-20260212-010|380=5|58=Insufficient buying power for order|10=023|
+```
+
+## Handling a Business Message Reject
+
+When you receive a Business Message Reject:
+
+1. Check Tag 372 (`RefMsgType`) to identify which message type was rejected.
+2. Check Tag 379 (`BusinessRejectRefID`) to correlate the rejection to a specific order or request.
+3. Read Tag 58 (`Text`) for a human-readable explanation.
+4. Use Tag 380 (`BusinessRejectReason`) to categorise the issue programmatically.
+5. Resolve the underlying condition — for example, verify account permissions, check buying power, or correct the symbol — before resubmitting.
+
+<Note>
+Common causes of Business Message Rejects on the Buildmarkets gateway include: insufficient buying power, options trading not enabled on the account, unrecognised ticker symbols, and security types not authorised for the account. Contact Buildmarkets support if you receive repeated rejects that you cannot resolve through message corrections.
+</Note>

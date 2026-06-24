@@ -1,0 +1,168 @@
+---
+title: "Go Live with Buildmarkets in Production"
+sidebarTitle: "Go Live"
+description: "Complete the Buildmarkets partner checklist and switch from sandbox to production — covering credentials, compliance, and launch verification steps."
+---
+
+Before you switch your integration to production, work through this checklist. Going live with Buildmarkets means real customer accounts, real money, and real regulatory obligations — it's worth taking the time to get each step right. This page covers everything you need to do before, during, and immediately after flipping to production.
+
+<Warning>
+  Never use sandbox API keys in production, and never point production traffic at the sandbox URL (`https://dev-tapp-api.tappengine.com`). The two environments are completely separate. Using sandbox credentials in production will result in authentication failures, and sending real customer data to sandbox is a compliance risk.
+</Warning>
+
+## Production base URL
+
+```
+https://api.tappengine.com
+```
+
+This is the only change required in your code to switch environments — replace the sandbox base URL with this one and swap in your production credentials.
+
+## Pre-launch checklist
+
+<Steps>
+
+### Sign and return your partner agreement
+
+Before Buildmarkets activates your production environment, you must have a signed partner agreement on file. This agreement covers your obligations as a partner using Buildmarkets's broker-dealer and clearing infrastructure, including customer suitability, supervision, and recordkeeping requirements.
+
+If you haven't received your partner agreement or need to review its status, contact your Buildmarkets account manager or email [partners@buildmarkets.com](mailto:partners@buildmarkets.com).
+
+### Generate production API credentials
+
+Production API keys are separate from sandbox keys. Log in to the Buildmarkets Partner Dashboard, navigate to **Settings → API Keys**, and generate a new key pair explicitly labeled for production (e.g., `production-backend`).
+
+Assign only the scopes your production services require. Follow the principle of least privilege — a backend service that only places orders and reads positions does not need `documents:write` or `keys:manage`.
+
+| Scope | Grant if your app needs to… |
+|---|---|
+| `accounts:read` | Read account details, balances, and positions |
+| `accounts:write` | Open and close investor accounts |
+| `funding:read` | Read ACH relationships and deposit/withdrawal history |
+| `funding:write` | Create funding sources and initiate deposits/withdrawals |
+| `trading:read` | Read orders and order history |
+| `trading:write` | Place, modify, and cancel orders |
+| `marketdata:read` | Access real-time quotes and historical data |
+| `documents:read` | List and retrieve account documents and tax forms |
+| `documents:write` | Upload and email documents |
+| `webhooks:read` | List webhook configurations |
+| `webhooks:write` | Create and manage webhook endpoints |
+
+Store your production secret immediately in a secrets manager (AWS Secrets Manager, HashiCorp Vault, or equivalent). The secret is shown only once and cannot be retrieved again.
+
+<Warning>
+  Never hard-code production API keys in source code, mobile app bundles, or client-side JavaScript. Always load them from a secrets manager or environment variables at runtime, server-side only.
+</Warning>
+
+### Configure production webhook endpoints
+
+In sandbox, your webhook endpoint likely pointed to a local tunnel or a test URL. Before going live, register a stable, publicly reachable HTTPS endpoint and verify it can handle Buildmarkets event payloads at production volume.
+
+```bash
+curl -X POST https://api.tappengine.com/v1/webhooks \
+  -H "X-API-Key: YOUR_PRODUCTION_KEY" \
+  -H "X-API-Secret: YOUR_PRODUCTION_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-app.example.com/webhooks/buildmarkets",
+    "events": [
+      "investor.compliance.approved",
+      "investor.compliance.rejected",
+      "order.filled",
+      "order.cancelled",
+      "transfer.deposit.completed",
+      "transfer.deposit.failed",
+      "transfer.withdrawal.completed",
+      "transfer.withdrawal.failed"
+    ]
+  }'
+```
+
+Confirm your webhook handler returns a `200` status within the delivery timeout. Failed deliveries are retried, but persistent failures will result in event loss.
+
+### Verify KYC flows with real identity data
+
+In sandbox, KYC was controlled by SSN suffixes. In production, identity verification runs through a real provider (Persona). Test your compliance submission flow with real (non-test) identity data before soft-launching to customers.
+
+Verify that your application:
+
+- Surfaces a clear in-progress state while KYC is processing (accounts start in `onboarding` or `approval_pending`)
+- Handles `investor.compliance.approved` and `investor.compliance.rejected` webhook events gracefully
+- Gives users clear next steps if their account is rejected or requires manual review
+- Does not allow funding or trading until the account reaches `active` status
+
+### Confirm ACH and funding flows
+
+Real ACH transfers take 1–3 business days to settle in production — not the instant settlement you saw in sandbox. Make sure your application:
+
+- Shows users a realistic funding timeline (not "instant")
+- Listens for `transfer.deposit.completed` rather than assuming settled funds after submission
+- Prevents order placement until `buying_power` reflects the deposited amount
+- Handles `transfer.deposit.failed` with a clear error message and retry path
+
+### Perform a production smoke test
+
+After completing the above steps, run a limited production smoke test before opening to all customers:
+
+1. Create one investor account with real identity data
+2. Confirm KYC approval via webhook
+3. Link a real bank account via Plaid
+4. Initiate a small deposit (e.g., $10) and wait for `transfer.deposit.completed`
+5. Place a small market order once buying power is available
+6. Confirm the fill via webhook and check the position
+
+If all six steps complete successfully, your integration is ready for broader launch.
+
+### Review your compliance obligations
+
+As a Buildmarkets partner, you have regulatory obligations under the terms of your partner agreement. These typically include:
+
+- **Customer suitability** — Collecting and retaining investment profile data for each account and ensuring orders are suitable for the customer's profile
+- **Supervision** — Maintaining a supervisory system appropriate for the trading and advisory activity on your platform
+- **Recordkeeping** — Retaining records of customer orders, account activity, and communications as required by FINRA and applicable SEC rules
+- **Customer disclosures** — Delivering required regulatory disclosures (e.g., Form ADV, margin disclosures) before account opening and recording acceptance via `POST /v1/investors/{investor_id}/disclosures/acceptances`
+
+Buildmarkets's underlying infrastructure is operated by a FINRA-registered broker-dealer and SEC-registered RIA. Your partner agreement specifies the division of compliance responsibilities between Buildmarkets and your firm. If you have questions about your specific obligations, contact [compliance@buildmarkets.com](mailto:compliance@buildmarkets.com).
+
+</Steps>
+
+## Environment comparison
+
+| Attribute | Sandbox | Production |
+|---|---|---|
+| **Base URL** | `https://dev-tapp-api.tappengine.com` | `https://api.tappengine.com` |
+| **KYC** | Simulated via SSN suffix | Real identity verification |
+| **Orders** | Simulated fills | Live order routing |
+| **ACH funding** | Instant, no real money | Real transfers, 1–3 business days |
+| **API keys** | Sandbox-only credentials | Production-only credentials |
+| **Customer data** | Use test data only | Real customer PII |
+
+## Switching to production
+
+Once you've completed the checklist, switching is a two-line change:
+
+```bash
+# Before (sandbox)
+export BM_BASE="https://dev-tapp-api.tappengine.com"
+export BM_KEY="your-sandbox-key"
+export BM_SECRET="your-sandbox-secret"
+
+# After (production)
+export BM_BASE="https://api.tappengine.com"
+export BM_KEY="your-production-key"
+export BM_SECRET="your-production-secret"
+```
+
+No endpoint paths, request bodies, or response-handling code needs to change.
+
+## Getting help
+
+If you run into issues during your go-live process, reach out to the Buildmarkets team:
+
+| Contact | When to use |
+|---|---|
+| [partners@buildmarkets.com](mailto:partners@buildmarkets.com) | Partner onboarding, agreement questions, access requests |
+| [support@buildmarkets.com](mailto:support@buildmarkets.com) | Technical integration support and bug reports |
+| [compliance@buildmarkets.com](mailto:compliance@buildmarkets.com) | Regulatory and compliance questions |
+
+Your Buildmarkets account manager can also escalate urgent production issues directly to the engineering team.

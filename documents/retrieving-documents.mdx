@@ -1,0 +1,152 @@
+---
+title: "List and Download Investor Account Documents"
+sidebarTitle: "Retrieve Documents"
+description: "List documents by type, period, or investor, then download PDF files using signed URLs from the Buildmarkets Documents API."
+---
+
+The Buildmarkets Documents API gives you two complementary retrieval workflows: listing documents with filters to build document history views, and fetching or downloading individual files on demand. All three endpoints below require your `X-API-Key` and `X-API-Secret` headers on every request.
+
+## List documents
+
+Use `GET /v1/documents` to retrieve a filtered, paginated list of documents across your tenant or for a specific investor. Apply filters to build scoped views — for example, all monthly statements for a given investor, or all pending-review documents across your platform.
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/documents \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -G \
+  --data-urlencode "investor_id=inv_01j9x8m2k7qpzwv3t5r6y8n0ab" \
+  --data-urlencode "purpose=account_statement" \
+  --data-urlencode "limit=10"
+```
+
+**Query parameters:**
+
+<ParamField query="investor_id" type="string">
+  Filter to documents owned by a specific investor. Use the prefixed investor id (`inv_…`).
+</ParamField>
+
+<ParamField query="user_id" type="string">
+  Filter to documents owned by a specific user (e.g. an uploaded UBO document).
+</ParamField>
+
+<ParamField query="purpose" type="string">
+  Filter by functional category. Accepted values: `KYC`, `KYB`, `EDD`, `TAX`, `FUNDING_VERIFICATION`, `AGREEMENT`, `ACCOUNT_STATEMENT`, `TRADE_CONFIRMATION`, `OTHER`.
+</ParamField>
+
+<ParamField query="document_type" type="string">
+  Filter by the free-form document classifier (e.g. `PASSPORT`, `1099-B`).
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by lifecycle status. Accepted values: `UPLOADED`, `PROCESSING`, `ACCEPTED`, `REJECTED`, `EXPIRED`.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Number of results per page. Minimum 1, maximum 200, default 50.
+</ParamField>
+
+<ParamField query="starting_after" type="string">
+  Cursor for pagination — pass the `document_id` of the last item from the previous response to retrieve the next page.
+</ParamField>
+
+**Example response:**
+
+```json
+{
+  "data": [
+    {
+      "document_id": "doc_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "object": "document",
+      "owner_type": "investor",
+      "owner_id": "01j9x8m2k7qpzwv3t5r6y8n0cd",
+      "purpose": "account_statement",
+      "document_type": "MONTHLY_STATEMENT",
+      "file_name": "statement-2025-04.pdf",
+      "mime_type": "application/pdf",
+      "file_size": 204800,
+      "status": "accepted",
+      "expires_at": null,
+      "uploaded_at": "2025-05-01T06:00:00Z",
+      "metadata": null
+    },
+    {
+      "document_id": "doc_01j9x8m2k7qpzwv3t5r6y8n0ef",
+      "object": "document",
+      "owner_type": "investor",
+      "owner_id": "01j9x8m2k7qpzwv3t5r6y8n0cd",
+      "purpose": "trade_confirmation",
+      "document_type": "TRADE_CONFIRMATION",
+      "file_name": "trade-confirm-2025-04-22.pdf",
+      "mime_type": "application/pdf",
+      "file_size": 51200,
+      "status": "accepted",
+      "expires_at": null,
+      "uploaded_at": "2025-04-22T15:30:00Z",
+      "metadata": null
+    }
+  ],
+  "has_more": false
+}
+```
+
+## Get a specific document
+
+Fetch the full metadata record for a single document using its `document_id`. Use this when you need to confirm a document's status or retrieve its details before triggering a download or email delivery.
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/documents/doc_01j9x8m2k7qpzwv3t5r6y8n0ab \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+The response returns the complete document object, identical in shape to the items returned by the list endpoint.
+
+<ParamField path="document_id" type="string" required>
+  The prefixed document identifier (e.g. `doc_…`).
+</ParamField>
+
+## Download a document
+
+Use `GET /v1/documents/{document_id}/download` to stream the raw file bytes for a document. The response body is the binary file content — `Content-Type` matches the document's stored MIME type (for example `application/pdf` or `image/png`), and `Content-Disposition` is set to `attachment` with the original filename.
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/documents/doc_01j9x8m2k7qpzwv3t5r6y8n0ab/download \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  --output statement-2025-04.pdf
+```
+
+The `--output` flag in the example above saves the streamed bytes directly to a local file. In a server-side integration, pipe the response stream to your storage layer or pass it through to the client with the appropriate `Content-Disposition` header.
+
+<ParamField path="document_id" type="string" required>
+  The prefixed document identifier (e.g. `doc_…`).
+</ParamField>
+
+**Response headers:**
+
+| Header | Example value |
+|---|---|
+| `Content-Type` | `application/pdf` |
+| `Content-Disposition` | `attachment; filename="statement-2025-04.pdf"` |
+
+<Note>
+  The download endpoint streams raw file bytes directly from object storage — do not cache the raw binary responses in a CDN or long-lived storage layer on behalf of investors, as document content may be updated or expire. Fetch a fresh download each time one is requested.
+</Note>
+
+## Pagination
+
+The list endpoint uses cursor-based pagination. When `has_more` is `true` in a response, there are additional results available. Pass the `document_id` of the last item in the current `data` array as `starting_after` in your next request.
+
+```bash
+# Fetch the next page using the last document_id as the cursor
+curl https://dev-tapp-api.tappengine.com/v1/documents \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -G \
+  --data-urlencode "investor_id=inv_01j9x8m2k7qpzwv3t5r6y8n0ab" \
+  --data-urlencode "starting_after=doc_01j9x8m2k7qpzwv3t5r6y8n0ef" \
+  --data-urlencode "limit=10"
+```
+
+Continue fetching until `has_more` returns `false`.

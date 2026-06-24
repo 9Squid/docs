@@ -1,0 +1,129 @@
+---
+title: "AI-Assisted Buildmarkets Development with Claude and Cursor"
+sidebarTitle: "AI Tools"
+description: "Use the Buildmarkets MCP server and llms.txt with Claude Code, Cursor, or Windsurf for AI-assisted API integration development."
+---
+
+Buildmarkets provides machine-readable documentation resources optimized for AI coding assistants. By feeding the right context to tools like Claude Code, Cursor, or Windsurf, you can generate accurate API calls, understand complex schemas, write idiomatic integration code, and get precise help with error handling — all without the AI hallucinating field names or inventing endpoints that don't exist.
+
+## Available resources
+
+### llms.txt
+
+The `llms.txt` file is an emerging industry standard that helps AI tools index documentation more efficiently — similar to how a `sitemap.xml` helps search engines. It provides a structured overview of all Buildmarkets documentation pages with concise summaries of each section.
+
+Use `llms.txt` when you want your AI assistant to understand the **structure** of the Buildmarkets docs and navigate to the right page for a specific question, such as understanding the compliance workflow or the order lifecycle.
+
+The `llms.txt` file is available at the root of this documentation site.
+
+### llms-full.txt
+
+The `llms-full.txt` file combines the **entire documentation site** into a single file. Paste it as context in your AI tool to give it comprehensive knowledge of every Buildmarkets API, workflow, and integration pattern in one shot.
+
+Use `llms-full.txt` when you want your AI assistant to answer questions that span multiple guides — for example, walking through the full flow from investor creation through KYC approval, funding, and placing a first trade.
+
+The `llms-full.txt` file is available at the root of this documentation site.
+
+<Note>
+  Both `llms.txt` and `llms-full.txt` are regenerated automatically whenever the documentation is updated. They require zero maintenance on your part and always reflect the current state of the API.
+</Note>
+
+### OpenAPI specification
+
+The Buildmarkets OpenAPI 3.0 specification documents every endpoint with exact request parameters, response schemas, enum values, and error messages. This is the most reliable source for exact field names, types, required fields, and response shapes.
+
+Use the OpenAPI spec when you need your AI assistant to generate correct API calls, validate a request body, or understand a specific response shape. The spec is available under the API Reference section of this documentation site.
+
+## Setting up AI-assisted development
+
+<Steps>
+
+<Step title="Choose your tool">
+
+All major AI coding assistants work well with the Buildmarkets documentation resources. Common choices include:
+
+| Tool | Best for |
+| --- | --- |
+| **Claude Code** | Conversational API exploration, code generation |
+| **Cursor** | In-editor code generation and autocomplete |
+| **Windsurf** | Agentic multi-file code generation |
+| **GitHub Copilot** | In-line code completion while editing |
+
+</Step>
+
+<Step title="Load documentation context">
+
+For tools that accept file or URL context (Claude Code, Cursor), load the documentation before asking integration questions:
+
+- **Quick start**: Paste the contents of `llms.txt` to give the AI a map of the documentation.
+- **Full coverage**: Paste `llms-full.txt` for comprehensive knowledge of every endpoint, workflow, and example.
+- **Precise implementation**: Attach or reference the `openapi.yaml` when writing or reviewing specific API calls.
+
+</Step>
+
+<Step title="Write an initial prompt">
+
+Give the AI enough context to generate accurate code. Include:
+- What you are building (e.g., "a React Native brokerage app")
+- Which Buildmarkets product you are using (Self-Directed or Wealth Management)
+- The specific task (e.g., "create an investor and poll for KYC approval")
+- Your language and framework
+
+</Step>
+
+<Step title="Iterate with specific follow-ups">
+
+Once the AI has context, ask targeted follow-up questions. The more specific you are about field names, error codes, and expected response shapes, the better the output.
+
+</Step>
+
+</Steps>
+
+## Effective prompting tips
+
+Getting the best results from AI tools when building Buildmarkets integrations comes down to providing the right context and asking precise questions.
+
+<Accordion title="Provide the OpenAPI spec when generating API calls">
+
+Generic prompts produce generic code. When you ask the AI to generate a request to `POST /v1/investors`, attach or reference the OpenAPI spec so it knows every required field, valid enum values, and the exact response shape. This prevents common mistakes like using `quantity` vs `qty`, or forgetting that `signed_agreements` requires at least two entries.
+
+**Example prompt:**
+> "Using the Buildmarkets OpenAPI spec attached, generate a TypeScript function that creates an individual self-directed investor with all required fields. Include the `investor_agreement` and `margin_disclosure_acknowledged` signed agreements. Handle the 400 and 409 error responses."
+
+</Accordion>
+
+<Accordion title="Reference error codes for specific error handling">
+
+The Buildmarkets API uses `BLUM-{STATUS}-{SEQ}` error codes that map to specific conditions. Tell the AI which error codes you want to handle explicitly. See the [Error Codes](/resources/error-codes) reference for the full list.
+
+**Example prompt:**
+> "Add error handling for `BLUM-422-001` (insufficient buying power) and `BLUM-409-001` (duplicate client_order_id). For the duplicate case, fetch and return the existing order instead of failing."
+
+</Accordion>
+
+<Accordion title="Ask about multi-step workflows end-to-end">
+
+Buildmarkets integrations often span multiple API calls — create investor → wait for KYC → connect funding source → deposit → trade. Use `llms-full.txt` as context and ask the AI to generate the full flow, including webhook event handling.
+
+**Example prompt:**
+> "Using the Buildmarkets docs in context, generate a Node.js class that handles the full investor onboarding flow: create investor, poll compliance status until approved or declined, then connect a Plaid funding source. Use async/await and handle all documented error codes."
+
+</Accordion>
+
+<Accordion title="Use the AI to explain webhook payloads">
+
+Webhook event payloads can be complex. Paste a raw event payload and ask the AI to explain what triggered it and what action your integration should take.
+
+**Example prompt:**
+> "Here is a Buildmarkets webhook payload I received. Given the Buildmarkets docs in context, what triggered this event and what should my integration do in response?"
+
+</Accordion>
+
+<Accordion title="Validate your implementation against the spec">
+
+After writing integration code, ask the AI to review it against the OpenAPI spec for correctness — checking required fields, valid enum values, and authentication headers.
+
+**Example prompt:**
+> "Review this API call against the Buildmarkets OpenAPI spec. Check for missing required fields, invalid enum values, and correct authentication headers. Flag any issues."
+
+</Accordion>

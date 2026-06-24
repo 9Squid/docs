@@ -1,0 +1,83 @@
+---
+title: "Integration Guides: Self-Directed and Wealth APIs"
+sidebarTitle: "Overview"
+description: "Step-by-step guides covering every Buildmarkets workflow — from account onboarding and KYC through trading, funding, and portfolio management."
+---
+
+These guides walk you through the complete set of Buildmarkets integration workflows — from opening your first investor account to placing trades and reading portfolio performance. Each guide covers a discrete step in the investing lifecycle, with working curl examples, request and response schemas, and decision points you'll need to handle in your product.
+
+Buildmarkets supports two primary integration paths. **Self-directed investing** gives your end users direct control over their brokerage accounts — they fund their accounts, pick their own securities, and place orders themselves. **Wealth management** adds advisory infrastructure on top: risk assessments, financial goals, investment policies, and advisor-managed portfolios. Both paths share the same investor onboarding, KYC, funding, and trading primitives; they differ in what you build on top.
+
+## Environments
+
+| Environment | Base URL |
+|-------------|----------|
+| Sandbox | `https://dev-tapp-api.tappengine.com` |
+| Production | `https://api.tappengine.com` |
+
+Every request requires `X-API-Key` and `X-API-Secret` headers. Use your sandbox credentials during development and switch to production credentials when you go live.
+
+## Self-directed investing
+
+The self-directed path covers the end-to-end lifecycle of a retail brokerage account — from collecting investor identity data through to reading positions and P&L.
+
+<CardGroup cols={2}>
+  <Card title="Account Onboarding" icon="user-plus" href="/guides/self-directed/account-onboarding">
+    Collect investor identity data and open a brokerage account via `POST /v1/investors`. Covers required fields, regulatory disclosures, and agreement capture.
+  </Card>
+  <Card title="KYC Verification" icon="shield-check" href="/guides/self-directed/kyc-verification">
+    Submit and track Know Your Customer verification. Handle approved, rejected, and manual review outcomes with webhooks or polling.
+  </Card>
+  <Card title="Bank Linking" icon="building-columns" href="/guides/self-directed/bank-linking">
+    Connect an investor's external bank account using the Plaid Link flow. Exchange tokens and manage funding sources.
+  </Card>
+  <Card title="Deposits & Withdrawals" icon="arrow-right-arrow-left" href="/guides/self-directed/deposits-withdrawals">
+    Move money in and out of investor accounts via ACH. Create, monitor, and cancel deposits and withdrawals.
+  </Card>
+  <Card title="Placing Orders" icon="chart-line" href="/guides/self-directed/placing-orders">
+    Submit market, limit, stop, and stop-limit orders for equities and ETFs. Covers order estimation, fractional shares, and cancellation.
+  </Card>
+  <Card title="Positions & Portfolio" icon="briefcase" href="/guides/self-directed/positions-portfolio">
+    Read current holdings, unrealized P&L, portfolio chart data, wallet balances, and transaction history.
+  </Card>
+</CardGroup>
+
+## Wealth management
+
+The wealth management path extends the self-directed primitives with advisory-grade tooling — risk profiling, goal planning, and portfolio management capabilities designed for advisor-managed or robo-advisor products.
+
+<CardGroup cols={2}>
+  <Card title="Wealth Management Quickstart" icon="chart-pie" href="/get-started/quick-start-wealth">
+    Walk through advisor-managed and robo-advisory account setup, portfolio construction, and rebalancing.
+  </Card>
+  <Card title="Account Onboarding" icon="address-card" href="/guides/self-directed/account-onboarding">
+    Manage investor identity data, employment details, and suitability profiles for regulatory compliance.
+  </Card>
+  <Card title="Placing Orders" icon="arrow-up-right" href="/guides/self-directed/placing-orders">
+    Submit equity and ETF orders — market, limit, and notional dollar-amount orders for portfolio construction.
+  </Card>
+  <Card title="Positions & Portfolio" icon="chart-mixed" href="/guides/self-directed/positions-portfolio">
+    View portfolio summaries, holdings, P&L, and portfolio chart data across managed accounts.
+  </Card>
+</CardGroup>
+
+## Integration patterns
+
+### Webhooks over polling
+
+Configure a webhook endpoint via `POST /v1/webhooks` and subscribe to the event types relevant to your product. Webhooks are the right choice for operational state changes — KYC approval, order fills, deposit settlement. Polling is acceptable for UI-driven reads like current balances or position values.
+
+### Pending state transitions
+
+Every major resource in Buildmarkets starts in a pending state before becoming active. Plan your UI around these transitions:
+
+| Resource | Pending state | Active state |
+|----------|---------------|--------------|
+| Investor account | `onboarding` | `active` |
+| Funding source | `pending` | `active` |
+| Deposit | `pending` | `completed` |
+| Order | `pending` | `filled` |
+
+### `corr_metadata` for cross-system linking
+
+The `corr_metadata` field on an investor record accepts a freeform string up to 255 characters. Store your internal user ID or account reference there at creation time. This eliminates the need for a separate ID-mapping database and makes cross-system lookups straightforward.

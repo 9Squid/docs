@@ -1,27 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
+  "projectType": "api-service",
+  "projectName": "Buildmarkets",
+  "projectDescription": "A white-label brokerage and wealth management infrastructure API that lets fintech companies and financial institutions embed accounts, KYC, equity trading, ACH funding, market data, and documents into their products through a single REST API.",
   "theme": "luma",
-  "name": "Buildmarkets",
-  "description": "White-label brokerage and wealth management infrastructure. Accounts, KYC, equity and ETF trading, ACH funding, market data, and documents — through a single API.",
-  "colors": {
-    "primary": "#3E5FFE",
-    "light": "#8D98FF",
-    "dark": "#3549A3"
-  },
-  "favicon": "/favicon.svg",
-  "navbar": {
-    "links": [
-      {
-        "href": "mailto:support@buildmarkets.com",
-        "label": "Support"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dash.buildmarkets.com"
-    }
-  },
+  "primaryColor": "#3E5FFE",
+  "lightColor": "#8D98FF",
+  "darkColor": "#3549A3",
   "navigation": {
     "tabs": [
       {
@@ -157,10 +141,37 @@
       }
     ]
   },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/buildmarkets",
-      "linkedin": "https://www.linkedin.com/company/buildmarkets"
-    }
-  }
+  "keyFeatures": [
+    "Self-directed investing: brokerage accounts, KYC verification, equity & ETF order execution, fractional shares",
+    "Wealth management: advisor-managed accounts, robo-advisory, automated portfolio rebalancing",
+    "ACH funding via Plaid Link integration — deposits and withdrawals",
+    "Real-time and historical market data: quotes, OHLCV bars, fundamentals, news, company profiles",
+    "Webhook event notifications for orders, transfers, accounts, and KYC status changes",
+    "FIX 4.4 gateway for institutional-grade, low-latency order management",
+    "Document management: statements, tax forms, compliance documents — retrieve and email",
+    "Sandbox environment with simulated trading, instant fills, and KYC outcome control via SSN suffix",
+    "Idempotency support for all financial write operations",
+    "API key scopes and partner dashboard for credential management"
+  ],
+  "publicApiSurface": [
+    "POST /v1/investors — Create investor (brokerage account)",
+    "GET /v1/investors/{investor_id} — Retrieve investor details",
+    "POST /v1/investors/{investor_id}/compliance/submit — Submit KYC",
+    "POST /v1/investors/{investor_id}/funding-sources/plaid/link-token — Get Plaid Link token",
+    "POST /v1/investors/{investor_id}/funding-sources/connect — Connect bank via Plaid",
+    "POST /v1/investors/{investor_id}/deposits — Initiate deposit",
+    "POST /v1/investors/{investor_id}/withdrawals — Initiate withdrawal",
+    "POST /v1/investors/{investor_id}/orders — Place order",
+    "DELETE /v1/investors/{investor_id}/orders/{order_id}/cancel — Cancel order",
+    "GET /v1/investors/{investor_id}/positions — List positions",
+    "GET /v1/investors/{investor_id}/wallets — Get wallet balances",
+    "GET /v1/assets/search — Search tradable assets",
+    "GET /v1/assets/{symbol} — Get asset details",
+    "GET /v1/documents — List documents",
+    "GET /v1/documents/{document_id}/download — Download document",
+    "POST /v1/webhooks — Register webhook",
+    "GET /v1/webhooks/event-types — List webhook event types",
+    "GET /v1/markets/{code}/status — Get market status",
+    "GET /v1/markets/{code}/calendar — Get market calendar"
+  ]
 }

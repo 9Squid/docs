@@ -1,0 +1,73 @@
+---
+title: "Buildmarkets FIX 4.4 Gateway for Institutional Trading"
+sidebarTitle: "Overview"
+description: "Connect your OMS or algorithmic trading system to Buildmarkets via FIX 4.4. Low-latency order routing with persistent TCP sessions and institutional-grade reliability."
+---
+
+The Buildmarkets FIX Gateway implements the FIX 4.4 protocol to give you direct, low-latency order routing without the overhead of HTTP. If you operate your own order management system (OMS), execution management system (EMS), or algorithmic trading infrastructure, the FIX gateway is the recommended integration path. Only the message types and tags documented in this section are supported — any unsupported tags are silently ignored, and unsupported message types will generate a Business Message Reject.
+
+## FIX vs REST
+
+Both interfaces support the same order types and securities, but the choice depends on your operational model. Use the table below to decide which integration fits your workflow.
+
+| Factor | FIX Gateway | REST API |
+|---|---|---|
+| Connection model | Persistent TCP session | HTTPS request/response |
+| Latency | Lower — no HTTP overhead | Standard HTTP round-trip |
+| Session management | Logon/Logout, heartbeats, sequence numbers | Bearer JWT + RSA request signing |
+| Supported order types | Equities, single-leg options, multi-leg options | Equities, single-leg options, multi-leg options |
+| Dollar/fractional orders | Supported (Market orders only) | Supported |
+| Multi-leg orders | Native via `MsgType=AB` | Via `POST /api/Order/CreateMultiLegOrder` |
+| Best fit | High-volume institutional flow, OMS/EMS | Partner portals, robo-advisory, mobile apps |
+
+## Setup Requirements
+
+Before you can connect, contact Buildmarkets support to receive your FIX connectivity credentials. You will need the following configuration values:
+
+| Parameter | Description |
+|---|---|
+| **Host & Port** | TCP endpoint assigned to your firm during onboarding |
+| **SenderCompID** (Tag 49) | Your firm's unique identifier on the gateway |
+| **TargetCompID** (Tag 56) | The Buildmarkets gateway identifier |
+| **HeartBtInt** (Tag 108) | Heartbeat interval in seconds — 30 seconds is recommended |
+
+<Note>
+Your `SenderCompID` and `TargetCompID` are assigned by Buildmarkets. Do not share these credentials — they uniquely identify your session on the gateway.
+</Note>
+
+## Outbound Messages (Client → Gateway)
+
+These are the messages your system sends to the Buildmarkets FIX gateway.
+
+| Message | MsgType | Purpose |
+|---|---|---|
+| New Order Single | `D` | Submit an equity or single-leg option order |
+| New Order Multileg | `AB` | Submit a multi-leg order (spreads, condors, straddles) |
+| Order Cancel Request | `F` | Cancel all remaining quantity on an open order |
+| Order Status Request | `H` | Query the current state of an order |
+
+## Inbound Messages (Gateway → Client)
+
+These are the messages the Buildmarkets FIX gateway sends to your system.
+
+| Message | MsgType | Purpose |
+|---|---|---|
+| Execution Report | `8` | Order acknowledgements, fills, partial fills, cancellations, and rejections |
+| Order Cancel Reject | `9` | Notification that a cancel request could not be processed |
+| Business Message Reject | `j` | Application-level rejection for a structurally valid but unprocessable message |
+
+## Quick Start
+
+Follow these steps to begin sending orders through the FIX gateway:
+
+1. Contact Buildmarkets support to receive your host/port, `SenderCompID`, and `TargetCompID`.
+2. Establish a TCP connection to the assigned host and port.
+3. Send a Logon message (`MsgType=A`) with `EncryptMethod=0` and your agreed `HeartBtInt`.
+4. Await the gateway's Logon acknowledgement before sending any application messages.
+5. Submit orders using New Order Single (`MsgType=D`) or New Order Multileg (`MsgType=AB`).
+6. Process inbound Execution Reports (`MsgType=8`) to track fills, acknowledgements, and rejections.
+7. At the end of your session, send a Logout message (`MsgType=5`) and wait for the gateway's Logout before closing the TCP connection.
+
+<Tip>
+During certification testing, send a small market order and verify you receive an Execution Report with `ExecType=0` (New) followed by `ExecType=F` (Trade) or `ExecType=2` (Fill) before connecting production flow.
+</Tip>

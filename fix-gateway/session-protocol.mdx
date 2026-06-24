@@ -1,0 +1,94 @@
+---
+title: "FIX 4.4 Session Protocol and Connection Setup"
+sidebarTitle: "Session Protocol"
+description: "Establish and maintain a FIX 4.4 session with the Buildmarkets gateway — covering logon, logout, heartbeats, sequence numbers, and resend requests."
+---
+
+The FIX Session Protocol governs the reliable, ordered delivery of application messages between your system and the Buildmarkets gateway. Before any order message can be sent, a session must be established via a TCP connection and a Logon handshake. The gateway supports the full set of FIX 4.4 session-level messages: Logon, Logout, Heartbeat, Test Request, Resend Request, Sequence Reset, and Reject.
+
+## Message Header
+
+Every FIX message — session-level or application-level — begins with a standard header. These fields must appear first and in the order shown.
+
+| Tag | Field | Description | Required | Type | Values |
+|---|---|---|---|---|---|
+| 8 | BeginString | FIX protocol version | Y | String | `FIX.4.4` |
+| 9 | BodyLength | Length of message body in bytes | Y | Int | Calculated |
+| 35 | MsgType | Message type identifier | Y | String | See message reference |
+| 34 | MsgSeqNum | Sequence number of this message | Y | Int | Monotonically increasing |
+| 43 | PossDupFlag | Marks a retransmitted message | N | Boolean | `Y` = possible duplicate |
+| 49 | SenderCompID | Identifier of the message sender | Y | String | Your assigned SenderCompID |
+| 52 | SendingTime | UTC timestamp when message was sent | Y | UTCTimestamp | `YYYYMMDD-HH:MM:SS.sss` |
+| 56 | TargetCompID | Identifier of the intended recipient | Y | String | Buildmarkets gateway ID |
+| 97 | PossResend | Indicates a message may have already been sent | N | Boolean | |
+| 122 | OrigSendingTime | Original send time for resent messages | C | UTCTimestamp | Required on resends; must **not** appear on new messages |
+
+## Message Trailer
+
+Every FIX message ends with the checksum field.
+
+| Tag | Field | Description | Required |
+|---|---|---|---|
+| 10 | CheckSum | Three-digit modulo-256 checksum | Y |
+
+## Logon (MsgType=A)
+
+After establishing your TCP connection, your system must send a Logon message immediately. The gateway responds with its own Logon to confirm the session is active. No application messages should be sent before the gateway's Logon acknowledgement is received.
+
+| Tag | Field | Description | Required | Type | Values |
+|---|---|---|---|---|---|
+| 98 | EncryptMethod | Encryption method for the session | Y | Int | `0` (None — encryption is handled at the TCP/TLS layer) |
+| 108 | HeartBtInt | Heartbeat interval in seconds | Y | Int | `30` recommended; `0` disables liveness checks |
+
+```fix
+8=FIX.4.4|9=72|35=A|34=1|49=CLIENT1|52=20260212-14:00:00.000|56=BUILDMARKETS|98=0|108=30|10=123|
+```
+
+<Note>
+Set `HeartBtInt` to `30` unless Buildmarkets support has agreed to a different value. A value of `0` disables heartbeat monitoring and is not recommended in production.
+</Note>
+
+## Logout (MsgType=5)
+
+Send a Logout message at the end of each trading session. Before logging out, confirm that no orders are pending and that you have received all expected Execution Reports. The party that initiates Logout is responsible for breaking the TCP connection after the counterparty's Logout is received.
+
+```fix
+8=FIX.4.4|9=56|35=5|34=150|49=CLIENT1|52=20260212-20:00:00.000|56=BUILDMARKETS|10=045|
+```
+
+Both sides may issue Resend Requests during the Logout sequence if sequence gaps are detected.
+
+## Heartbeat (MsgType=0)
+
+Heartbeat messages are sent automatically by both sides when no other data has been transmitted for the duration of the `HeartBtInt`. They are also sent in response to a Test Request. You do not need to send Heartbeats manually — your FIX engine should handle this automatically.
+
+## Test Request (MsgType=1)
+
+If the gateway detects no inbound data from your session for `HeartBtInt + 2` seconds, it will send a Test Request. Your system must respond with a Heartbeat referencing the `TestReqID` in the Test Request. If no Heartbeat is received within `2 × HeartBtInt + 4` seconds of inactivity, the gateway sends a Logout and drops the TCP connection.
+
+## Resend Request (MsgType=2)
+
+When a sequence number gap is detected, the receiving side sends a Resend Request to recover the missing messages. Resent messages must include `PossDupFlag=Y` (Tag 43) and `OrigSendingTime` (Tag 122).
+
+<Warning>
+If you receive a Resend Request while you also have a sequence gap to recover, resend the requested messages **first** before issuing your own Resend Request. Sending your own Resend Request first can cause an infinite loop between the two sides.
+</Warning>
+
+Two gap-filling strategies are supported:
+
+- **Specific range:** Request only the exact gap (e.g., messages 11 through 14). Process any out-of-sequence messages received after the gap once the gap is filled.
+- **Open-ended range:** Discard the out-of-sequence message and request from the gap start to a high number (e.g., 11 to 999999). The counterparty resends everything from that point forward.
+
+## Sequence Reset (MsgType=4)
+
+When resending a range that includes administrative messages (other than Reject), replace those administrative messages with a single Sequence Reset – Gap Fill message. For example, if resending messages 10–15 and messages 11–14 are Heartbeats, send one Sequence Reset with `NewSeqNo=15` instead of four Heartbeats.
+
+Sequence Reset – Gap Fill messages must arrive in sequence order. The gateway may reset sequence numbers to 1 on a configurable schedule — your system should handle an incoming Logon with `ResetSeqNumFlag=Y` gracefully.
+
+## Session-Level Reject (MsgType=3)
+
+The gateway sends a Reject when it receives a message with a structural or session-level error (for example, a missing required header tag or an invalid checksum).
+
+<Warning>
+Per the FIX specification, a rejected message is **not** automatically resent. Avoid generating Session Rejects by validating all messages locally before transmission. If you encounter unexpected Reject messages, contact Buildmarkets support.
+</Warning>

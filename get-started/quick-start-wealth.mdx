@@ -1,0 +1,357 @@
+---
+title: "Build a Wealth Management Integration"
+sidebarTitle: "Wealth Management"
+description: "Build advisor-managed or robo-advisory accounts with Buildmarkets — from account setup and ACH funding to portfolio construction and rebalancing."
+---
+
+Buildmarkets is flexible enough to power a wide range of managed-money products. Whether you're building advisor-managed accounts where a human RIA controls the portfolio, or a fully automated robo-advisor where your algorithm runs the show, the API model is the same: create an account with the right metadata, fund it via ACH, place orders using notional (dollar) amounts, and subscribe to fill events to trigger your next action.
+
+This guide walks through the advisor-managed and robo-advisor patterns. For a consumer self-directed flow, see the [Self-Directed Quick Start](/get-started/quick-start-self-directed).
+
+## Use case matrix
+
+Before you build, identify which API capabilities your integration requires:
+
+| Scenario | Accounts | Trading | Funding | Market Data | Documents | Webhooks |
+|---|---|---|---|---|---|---|
+| Embedded brokerage app | ✅ | ✅ | ✅ | ✅ | | |
+| Advisor-managed accounts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Robo-advisor / automated investing | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Challenger bank with investing | ✅ | ✅ | ✅ | ✅ | | ✅ |
+| Employee investment benefits | ✅ | ✅ | ✅ | ✅ | ✅ | |
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+- A Buildmarkets partner account
+- API credentials from **Settings → API Keys** in the Partner Dashboard
+
+Set your credentials as environment variables so you can copy-paste the examples below:
+
+```bash
+export BM_KEY="your-api-key"
+export BM_SECRET="your-api-secret"
+export BM_BASE="https://dev-tapp-api.tappengine.com"
+```
+
+<Steps>
+
+### Create an account with advisor metadata
+
+For advisor-managed accounts, set `discretionary_account: true` on the investor record. This grants your platform (or the assigned advisor) full trading authority over the account. Pair it with `advisor_code` to associate the account with a specific advisor, and `registered_rep_code` to link it to a registered representative.
+
+For robo-advisors, capture detailed suitability data — `risk_tolerance`, `investment_objective`, and `time_horizon` — so your allocation engine can build the right model portfolio.
+
+<CodeGroup>
+
+```bash Advisor-Managed Account
+curl -X POST "$BM_BASE/v1/investors" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "account_type": "individual",
+    "management_type": "advisor_managed",
+    "tax_advantaged": false,
+    "first_name": "Alex",
+    "last_name": "Rivera",
+    "date_of_birth": "1985-03-22",
+    "email": "alex.rivera@example.com",
+    "phone": "+12125550101",
+    "address": {
+      "street": ["789 Park Avenue"],
+      "city": "New York",
+      "state": "NY",
+      "postal_code": "10021",
+      "country": "US"
+    },
+    "tax_id": "987-65-0001",
+    "tax_id_type": "SSN",
+    "country_of_tax_residence": "US",
+    "country_of_citizenship": "US",
+    "country_of_birth": "US",
+    "funding_source": ["employment_income"],
+    "annual_income": { "min": "150000", "max": "199999" },
+    "liquid_net_worth": { "min": "100000", "max": "249999" },
+    "is_control_person": false,
+    "is_affiliated_exchange_or_finra": false,
+    "is_politically_exposed": false,
+    "immediate_family_exposed": false,
+    "employment_status": "employed",
+    "employer_name": "Rivera Ventures LLC",
+    "discretionary_account": true,
+    "advisor_code": "ADV-7890",
+    "registered_rep_code": "REP-4512",
+    "signed_agreements": [
+      {
+        "type": "investor_agreement",
+        "signed_at": "2026-01-15T10:30:00.000Z",
+        "ip_address": "203.0.113.55"
+      }
+    ]
+  }'
+```
+
+```bash Robo-Advisor Account
+curl -X POST "$BM_BASE/v1/investors" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "account_type": "individual",
+    "management_type": "self_directed",
+    "tax_advantaged": false,
+    "first_name": "Sam",
+    "last_name": "Chen",
+    "date_of_birth": "1992-07-10",
+    "email": "sam.chen@example.com",
+    "phone": "+14085550202",
+    "address": {
+      "street": ["321 Tech Blvd"],
+      "city": "San Jose",
+      "state": "CA",
+      "postal_code": "95110",
+      "country": "US"
+    },
+    "tax_id": "987-65-0001",
+    "tax_id_type": "SSN",
+    "country_of_tax_residence": "US",
+    "country_of_citizenship": "US",
+    "country_of_birth": "US",
+    "funding_source": ["employment_income"],
+    "annual_income": { "min": "75000", "max": "99999" },
+    "liquid_net_worth": { "min": "20000", "max": "49999" },
+    "is_control_person": false,
+    "is_affiliated_exchange_or_finra": false,
+    "is_politically_exposed": false,
+    "immediate_family_exposed": false,
+    "employment_status": "employed",
+    "employer_name": "Startup Inc",
+    "investment_profile": {
+      "risk_tolerance": "moderate",
+      "investment_objective": "growth",
+      "time_horizon": "long"
+    },
+    "dividend_reinvestment": true,
+    "signed_agreements": [
+      {
+        "type": "investor_agreement",
+        "signed_at": "2026-01-15T10:30:00.000Z",
+        "ip_address": "203.0.113.60"
+      }
+    ]
+  }'
+```
+
+</CodeGroup>
+
+Save the `id` from the response as your `investor_id`:
+
+```bash
+export INVESTOR_ID="inv_01j9x8m2k7qpzwv3t5r6y8n0ab"
+```
+
+<Note>
+  In sandbox, use SSN suffix `0001` (e.g., `987-65-0001`) to trigger instant KYC approval. Use `0002` for rejection and `0003` for manual review.
+</Note>
+
+### Fund the account via ACH
+
+Connect the client's bank account via Plaid and initiate a deposit. First, generate a Plaid Link token and complete the bank connection flow:
+
+```bash
+# Step 1: Create a Plaid Link token
+curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/funding-sources/plaid/link-token" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{ "enable_hosted_link": false }'
+```
+
+After the investor completes the Plaid flow and your app receives a `public_token`, connect the funding source:
+
+```bash
+# Step 2: Connect the funding source
+curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/funding-sources/connect" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "plaid",
+    "public_token": "public-sandbox-1234abcd-5678-90ef"
+  }'
+```
+
+Now initiate the initial deposit:
+
+```bash
+# Step 3: Initiate a deposit
+export FUNDING_SOURCE_ID="fs_01j9x8m2k7qpzwv3t5r6y8n0ef"
+
+curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/deposits" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "10000.00",
+    "currency": "USD",
+    "method": "ach",
+    "funding_source_id": "'$FUNDING_SOURCE_ID'"
+  }'
+```
+
+For robo-advisor products with recurring contributions, call `POST /v1/investors/{investor_id}/deposits` on your funding schedule (weekly, monthly, etc.) using the same `funding_source_id`.
+
+### Place portfolio orders with notional amounts
+
+Use `notional` (dollar amount) instead of `quantity` (share count) to implement dollar-cost averaging and model-portfolio allocations. This lets you allocate, say, 40% of a $10,000 deposit to AAPL without calculating share quantities yourself.
+
+Always include a `client_order_id` on every order. This makes order submission idempotent — if a network timeout forces a retry, Buildmarkets returns the existing order rather than creating a duplicate.
+
+<CodeGroup>
+
+```bash Notional Market Buy
+curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbol": "AAPL",
+    "side": "buy",
+    "type": "market",
+    "time_in_force": "day",
+    "notional": "4000.00",
+    "client_order_id": "portfolio-rebal-aapl-20260115-001"
+  }'
+```
+
+```bash Limit Buy (GTC)
+curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbol": "MSFT",
+    "side": "buy",
+    "type": "limit",
+    "time_in_force": "gtc",
+    "quantity": "10",
+    "limit_price": "375.00",
+    "client_order_id": "portfolio-rebal-msft-20260115-001"
+  }'
+```
+
+```bash ETF Allocation
+curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbol": "VTI",
+    "side": "buy",
+    "type": "market",
+    "time_in_force": "day",
+    "notional": "6000.00",
+    "client_order_id": "portfolio-rebal-vti-20260115-001"
+  }'
+```
+
+</CodeGroup>
+
+For advisor-managed accounts, you can also cancel and replace open orders as part of a rebalance:
+
+```bash
+# Cancel an open order
+export ORDER_ID="ord_01j9x8m2k7qpzwv3t5r6y8n0ab"
+
+curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders/$ORDER_ID/cancel" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET"
+```
+
+### Monitor positions
+
+Check the current portfolio holdings to verify your orders filled and the allocations match your model:
+
+```bash
+curl "$BM_BASE/v1/investors/$INVESTOR_ID/positions" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET"
+```
+
+Each position object includes `symbol`, `quantity`, `average_price`, current market value, and unrealized P&L. Set `?refresh_prices=true` (the default) to get live prices, or `?refresh_prices=false` to use stored values for faster reads.
+
+For a high-level equity snapshot across the account, use the portfolio chart endpoint:
+
+```bash
+curl "$BM_BASE/v1/investors/$INVESTOR_ID/portfolio-chart" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET"
+```
+
+### Set up webhooks for fill confirmations
+
+For advisor-managed and robo-advisor flows, use webhooks instead of polling to react to fill events. Register a webhook endpoint to receive notifications when orders fill, deposits settle, or compliance status changes:
+
+```bash
+curl -X POST "$BM_BASE/v1/webhooks" \
+  -H "X-API-Key: $BM_KEY" \
+  -H "X-API-Secret: $BM_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-app.example.com/webhooks/buildmarkets",
+    "events": [
+      "order.filled",
+      "order.cancelled",
+      "transfer.deposit.completed",
+      "investor.compliance.approved"
+    ]
+  }'
+```
+
+When an order fills, Buildmarkets posts an `order.filled` event to your endpoint. Your handler can then trigger the next step — placing the next tranche of orders, updating your portfolio model, or notifying the advisor.
+
+<Tip>
+  For robo-advisor rebalancing, subscribe to `order.filled` and chain your next order placement inside the webhook handler. This avoids polling loops and keeps your allocation logic in sync with actual execution.
+</Tip>
+
+</Steps>
+
+## Common integration patterns
+
+### Idempotency with `client_order_id`
+
+Always pass a `client_order_id` on every `POST /v1/investors/{investor_id}/orders` request. A reliable scheme is `{your-user-id}-{symbol}-{side}-{date}-{sequence}`. If a network timeout forces a retry, Buildmarkets returns the existing order rather than creating a duplicate submission.
+
+### Handling pending states
+
+Resources move through intermediate states before becoming active. Use webhooks to detect these transitions rather than polling in a tight loop.
+
+| Resource | Pending state | Active / settled state |
+|---|---|---|
+| Investor account | `onboarding` → `approval_pending` | `active` |
+| Funding source | `pending` | `approved` |
+| Deposit / withdrawal | `pending` | `completed` |
+| Order | `pending` | `filled` |
+
+### `corr_metadata` for cross-system linking
+
+Pass your internal user or account ID in `corr_metadata` when creating an investor account. This freeform field (up to 255 characters) lets you look up the Buildmarkets account from your system without maintaining a separate ID-mapping table.
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Sandbox Reference" icon="flask" href="/get-started/sandbox">
+    Test KYC outcomes, simulated fills, and ACH behavior before going live.
+  </Card>
+  <Card title="Go Live" icon="rocket" href="/get-started/go-live">
+    Complete the compliance checklist and switch to your production credentials.
+  </Card>
+  <Card title="Webhooks" icon="bell" href="/platform/webhooks">
+    Full event catalog and delivery guarantees for order, account, and funding events.
+  </Card>
+  <Card title="Authentication" icon="key" href="/platform/authentication">
+    Scope your API keys to least-privilege and set up key rotation.
+  </Card>
+</CardGroup>

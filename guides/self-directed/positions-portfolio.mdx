@@ -1,0 +1,253 @@
+---
+title: "View Investor Positions and Portfolio Performance"
+sidebarTitle: "Positions & Portfolio"
+description: "Retrieve an investor's current holdings, unrealized P&L, portfolio chart data, and transaction history using the Buildmarkets positions and wallets APIs."
+---
+
+After an investor's orders fill, you can retrieve their current holdings, unrealized profit and loss, wallet balances, and a historical portfolio value chart. These endpoints power the portfolio dashboard in your application — showing investors what they own, what it's worth, and how it's changed over time.
+
+All position data is backed by live or near-live market prices by default. Set `refresh_prices=false` on positions endpoints to use stored prices and reduce response latency for non-realtime use cases.
+
+## Prerequisites
+
+- Investor account with `status: active`
+- At least one filled order (positions only appear after trade settlement)
+
+## List positions
+
+Retrieve all open positions for an investor. Each position includes the current market value, cost basis, and unrealized P&L in both dollar and percentage terms.
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/positions?non_zero_only=true" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Example response:
+
+```json
+{
+  "object": "list",
+  "url": "/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/positions",
+  "has_more": false,
+  "data": [
+    {
+      "id": "pos_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "object": "position",
+      "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "symbol": "AAPL",
+      "class": "equity",
+      "country": "us",
+      "currency": "USD",
+      "quantity": "10.5",
+      "average_cost_basis": "175.50",
+      "total_cost_basis": "1842.75",
+      "current_price": "182.30",
+      "market_value": "1914.15",
+      "unrealized_pl": "71.40",
+      "unrealized_pl_percent": "3.87",
+      "price_source": "ALPACA",
+      "price_confidence": "REAL_TIME",
+      "price_timestamp": "2026-05-14T14:30:00Z",
+      "updated_at": "2026-05-14T14:30:00Z"
+    },
+    {
+      "id": "pos_01j9x8m2k7qpzwv3t5r6y8n0cd",
+      "object": "position",
+      "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "symbol": "SPY",
+      "class": "etf",
+      "country": "us",
+      "currency": "USD",
+      "quantity": "5.0",
+      "average_cost_basis": "520.00",
+      "total_cost_basis": "2600.00",
+      "current_price": "528.40",
+      "market_value": "2642.00",
+      "unrealized_pl": "42.00",
+      "unrealized_pl_percent": "1.62",
+      "price_source": "ALPACA",
+      "price_confidence": "REAL_TIME",
+      "price_timestamp": "2026-05-14T14:30:00Z",
+      "updated_at": "2026-05-14T14:30:00Z"
+    }
+  ]
+}
+```
+
+### Position field reference
+
+| Field | Description |
+|-------|-------------|
+| `symbol` | Ticker symbol of the held security |
+| `class` | Asset class: `equity`, `etf`, `bond`, etc. |
+| `quantity` | Number of shares held (may be fractional) |
+| `average_cost_basis` | Average price paid per share across all lots |
+| `total_cost_basis` | Total amount invested (`quantity × average_cost_basis`) |
+| `current_price` | Current market price per share |
+| `market_value` | Current value of the position (`quantity × current_price`) |
+| `unrealized_pl` | Dollar gain/loss since purchase (`market_value - total_cost_basis`) |
+| `unrealized_pl_percent` | Percentage gain/loss since purchase |
+| `price_confidence` | Freshness of the price: `REAL_TIME`, `DELAYED`, `END_OF_DAY`, `STALE` |
+
+<Note>
+  `market_value` reflects the current live price and changes continuously during market hours. `total_cost_basis` is fixed and represents what the investor actually paid. The difference between the two is the unrealized P&L — it only becomes realized P&L when the investor sells.
+</Note>
+
+## Get a specific position
+
+Retrieve a single position by its ID. Pass `refresh_prices=false` to skip the live price fetch if you're building a low-latency read path.
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/positions/pos_01j9x8m2k7qpzwv3t5r6y8n0ab?refresh_prices=true" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+## Portfolio chart
+
+Retrieve a time series of the investor's total portfolio value — useful for rendering a performance chart in your UI. The response includes both the current snapshot and a historical array of `{ date, total_value }` data points.
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/portfolio-chart \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Example response:
+
+```json
+{
+  "object": "portfolio_chart",
+  "livemode": false,
+  "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "currency": "USD",
+  "current": {
+    "total_value": "4556.15",
+    "cash_value": "500.00",
+    "positions_value": "4056.15",
+    "as_of": "2026-05-14T14:30:00Z"
+  },
+  "chart_data": [
+    { "date": "2026-04-14", "total_value": "4100.00" },
+    { "date": "2026-04-21", "total_value": "4250.00" },
+    { "date": "2026-04-28", "total_value": "4180.00" },
+    { "date": "2026-05-05", "total_value": "4390.00" },
+    { "date": "2026-05-12", "total_value": "4480.00" },
+    { "date": "2026-05-14", "total_value": "4556.15" }
+  ]
+}
+```
+
+The `current.total_value` is `cash_value + positions_value` — the investor's complete balance including uninvested cash. Use `chart_data` to render a line chart showing portfolio growth over time.
+
+## Wallet balances
+
+Retrieve the investor's wallet balances, including total cash, buying power, withdrawable cash, and total equity. An investor may have multiple wallets if they hold positions in multiple currencies.
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/wallets \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Example response:
+
+```json
+{
+  "object": "list",
+  "url": "/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/wallets",
+  "has_more": false,
+  "data": [
+    {
+      "id": "wlt_01j9x8m2k7qpzwv3t5r6y8n0cd",
+      "object": "wallet",
+      "currency": "USD",
+      "balance": "1500.00",
+      "available_balance": "1200.00",
+      "reserved_balance": "300.00",
+      "cash_withdrawable": "1000.00",
+      "buying_power": "5000.00",
+      "equity": "8500.00",
+      "status": "active"
+    }
+  ]
+}
+```
+
+### Wallet field reference
+
+| Field | Description |
+|-------|-------------|
+| `balance` | Total cash in the wallet |
+| `available_balance` | Cash available for use (`balance - reserved_balance`) |
+| `reserved_balance` | Cash held in reserve for pending orders or transfers |
+| `cash_withdrawable` | Amount that can be withdrawn right now (settled cash only) |
+| `buying_power` | Maximum amount available to spend on new orders |
+| `equity` | Total account value including all positions |
+
+## Transaction history
+
+Retrieve the investor's complete cash activity — deposits, withdrawals, trade settlements, dividends, fees, and corporate actions — from a single endpoint.
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/transactions?type=buy&limit=20" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Filter by `type`:
+
+| Type value | What it includes |
+|------------|-----------------|
+| `deposit` | ACH and wire deposits |
+| `withdrawal` | ACH and wire withdrawals |
+| `buy` | Cash settlements from buy orders |
+| `sell` | Cash settlements from sell orders |
+| `activity` | Dividends, fees, interest, corporate actions |
+
+Additional filter parameters: `activity_type` (comma-separated, e.g. `CDIV,FEE`), `status`, `currency`, `date_from`, `date_to`, `limit` (max 100), `offset`.
+
+Example transaction:
+
+```json
+{
+  "id": "txn_01j9x8m2k7qpzwv3t5r6y8n0gh",
+  "object": "transaction",
+  "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "wallet_id": "wlt_01j9x8m2k7qpzwv3t5r6y8n0cd",
+  "type": "deposit",
+  "status": "completed",
+  "amount": "5000.00",
+  "currency": "USD",
+  "method": "ach",
+  "description": "Initial account funding",
+  "completed_at": "2026-01-16T14:20:00Z",
+  "failed_at": null,
+  "failure_reason": null
+}
+```
+
+## Building a portfolio dashboard
+
+Combine these endpoints to power a complete portfolio view:
+
+1. Call `GET /v1/investors/{id}/wallets` to show total equity, cash, and buying power at the top of the screen
+2. Call `GET /v1/investors/{id}/positions?non_zero_only=true` to display individual holdings with live P&L
+3. Call `GET /v1/investors/{id}/portfolio-chart` to render a performance chart
+4. Call `GET /v1/investors/{id}/transactions?limit=10` to show a recent activity feed
+
+<Tip>
+  For real-time portfolio dashboards, poll positions and wallets every 15–30 seconds during market hours. Outside market hours, reduce polling frequency or use stored prices (`refresh_prices=false`) to avoid unnecessary latency.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Placing Orders" href="/guides/self-directed/placing-orders">
+    Place buy and sell orders to change the investor's positions.
+  </Card>
+  <Card title="Deposits & Withdrawals" href="/guides/self-directed/deposits-withdrawals">
+    Add or remove cash from the investor's wallet.
+  </Card>
+</CardGroup>

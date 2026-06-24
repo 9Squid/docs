@@ -1,0 +1,214 @@
+---
+title: "Link Investor Bank Accounts via Plaid"
+sidebarTitle: "Bank Linking"
+description: "Use the Buildmarkets Plaid integration to link an investor's external bank account — covering the link token flow, connecting the account, and managing funding sources."
+---
+
+Before an investor can deposit or withdraw funds, you need to connect their external bank account as a funding source. Buildmarkets uses Plaid to handle the bank connection flow securely. Your backend creates a short-lived link token, your frontend passes it to the Plaid Link UI component (which handles credential collection and bank authentication entirely on Plaid's infrastructure), and once the user completes the flow, you exchange the resulting public token for a persistent funding source on the investor's account.
+
+The investor account must be in `active` status before you can link a funding source. Complete KYC verification first.
+
+## Plaid Link integration options
+
+Buildmarkets supports two Plaid Link integration modes:
+
+| Mode | How it works | Best for |
+|------|-------------|---------|
+| **SDK** (default) | Embed the Plaid Link SDK in your web or mobile app using the `link_token` | Full control over the UI experience |
+| **Hosted Link** | Redirect users to a Plaid-hosted page using `hosted_link_url` | Quick integrations without SDK setup |
+
+<Steps>
+  <Step title="Create a Plaid link token">
+    Request a link token from Buildmarkets. This token is scoped to the specific investor and is used to initialize the Plaid Link UI. It expires after a short window, so generate it immediately before presenting the link flow to the user.
+
+    **SDK integration:**
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/funding-sources/plaid/link-token \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "enable_hosted_link": false
+      }'
+    ```
+
+    **Hosted Link integration:**
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/funding-sources/plaid/link-token \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "enable_hosted_link": true
+      }'
+    ```
+
+    The response includes a `link_token` for SDK integrations or a `hosted_link_url` for the hosted flow:
+
+    ```json
+    {
+      "link_token": "link-sandbox-abc123def456-...",
+      "hosted_link_url": null,
+      "expiration": "2026-05-14T13:00:00Z"
+    }
+    ```
+
+    <Note>
+      The Plaid Link UI runs entirely in the user's browser. Your backend only handles the token exchange — Plaid's SDK never sends bank credentials to your servers. This keeps sensitive financial credentials off your infrastructure.
+    </Note>
+  </Step>
+
+  <Step title="Open Plaid Link in your UI">
+    Pass the `link_token` to the Plaid Link SDK in your frontend application. Plaid Link is a pre-built UI component that guides the user through selecting their bank, authenticating with their credentials, and choosing which account to connect.
+
+    **SDK integration (JavaScript example):**
+
+    ```javascript
+    const { open } = usePlaidLink({
+      token: linkToken, // the link_token from step 1
+      onSuccess: (public_token, metadata) => {
+        // Send public_token to your backend
+        exchangePlaidToken(public_token);
+      },
+      onExit: (err, metadata) => {
+        // Handle user exit or error
+        console.log('Plaid Link exited', err);
+      },
+    });
+
+    // Trigger when the user clicks "Connect Bank"
+    open();
+    ```
+
+    **Hosted Link integration:**
+
+    Redirect the user to the `hosted_link_url`. After completing the flow, Plaid redirects them back to your application. Plaid appends the `public_token` as a query parameter on the redirect URL you configured.
+
+    <Tip>
+      In sandbox, use the test credentials `user_good` / `pass_good` to simulate a successful bank connection. Plaid's sandbox documentation lists additional test scenarios for specific bank responses.
+    </Tip>
+  </Step>
+
+  <Step title="Exchange the public token">
+    When Plaid Link succeeds, it returns a short-lived `public_token`. Send this token from your frontend to your backend, then exchange it with Buildmarkets to create the persistent funding source.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/funding-sources/connect \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "type": "plaid",
+        "public_token": "public-sandbox-1234abcd-5678-90ef"
+      }'
+    ```
+
+    The response is a list envelope — one funding source per bank account the user authorized:
+
+    ```json
+    {
+      "object": "list",
+      "url": "/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/funding-sources",
+      "has_more": false,
+      "data": [
+        {
+          "id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef",
+          "object": "funding_source",
+          "type": "plaid",
+          "status": "active",
+          "bank_name": "Chase",
+          "account_holder_name": "Jane Doe",
+          "bank_account_type": "CHECKING",
+          "mask": "****9012",
+          "currency": "USD",
+          "created_at": "2026-05-14T12:00:00Z"
+        }
+      ]
+    }
+    ```
+
+    Store the funding source `id` (the `fs_…` prefixed string). You will pass it as `funding_source_id` when creating deposits and withdrawals.
+  </Step>
+
+  <Step title="Confirm the funding source is active">
+    A successfully connected Plaid funding source has `status: active` immediately after exchange. Verify this before presenting funding options to the user.
+
+    ```bash
+    curl https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/funding-sources \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET"
+    ```
+
+    Only funding sources with `status: active` can be used for deposits and withdrawals.
+  </Step>
+</Steps>
+
+## Managing funding sources
+
+### List funding sources
+
+Retrieve all funding sources linked to an investor. Use the optional `type` query parameter to filter by `plaid`, `manual`, or `all` (default).
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/funding-sources?type=plaid" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+### Disconnect a funding source
+
+Remove a funding source when an investor wants to unlink their bank account. This performs a soft delete — the funding source is deactivated but the record is retained for audit purposes.
+
+```bash
+curl -X DELETE "https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/funding-sources/fs_01j9x8m2k7qpzwv3t5r6y8n0ef?type=plaid" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+The response confirms deletion:
+
+```json
+{
+  "id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef",
+  "object": "funding_source",
+  "deleted": true
+}
+```
+
+<Warning>
+  Do not disconnect a funding source that has a pending deposit or withdrawal in progress. Confirm all in-flight transfers have completed before removing a funding source.
+</Warning>
+
+## Manual bank connection (no Plaid)
+
+If you need to connect a bank account without Plaid — for example, for international wire transfers — use the `manual` connection type instead. Supply bank details directly:
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/funding-sources/connect \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "manual",
+    "bank_name": "Chase",
+    "account_holder_name": "Jane Doe",
+    "account_number": "000123456789",
+    "routing_number": "021000021",
+    "bank_account_type": "CHECKING",
+    "country": "US",
+    "currency": "USD"
+  }'
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Deposits & Withdrawals" href="/guides/self-directed/deposits-withdrawals">
+    Use the linked funding source to move money into and out of the investor's account.
+  </Card>
+  <Card title="KYC Verification" href="/guides/self-directed/kyc-verification">
+    Ensure the investor's account is active before linking a bank account.
+  </Card>
+</CardGroup>

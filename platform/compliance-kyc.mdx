@@ -1,0 +1,145 @@
+---
+title: "KYC Verification and Compliance Workflows"
+sidebarTitle: "KYC"
+description: "Submit identity data for KYC verification, track compliance status, and handle approval, rejection, and manual review outcomes."
+---
+
+When you create an investor, Buildmarkets automatically initiates a KYC (Know Your Customer) compliance workflow to verify the investor's identity and screen against regulatory watchlists. The investor account remains in `onboarding` status until the workflow reaches a terminal state. Understanding how the workflow progresses — and how to handle each outcome — is essential for building a smooth onboarding experience.
+
+## How KYC works
+
+<Steps>
+  <Step title="Create the investor">
+    Submit `POST /v1/investors` with the investor's identity data (name, date of birth, tax ID, address). Buildmarkets creates the investor in `onboarding` status and immediately starts the compliance workflow.
+  </Step>
+  <Step title="Compliance checks run">
+    The workflow runs multiple checks in parallel: identity verification, sanctions/PEP screening, and risk assessment. Each check has its own `status` (`pending`, `clear`, `attention`, `consider`).
+  </Step>
+  <Step title="Workflow reaches a terminal state">
+    When all checks complete, the workflow transitions to a terminal status. The investor's account status updates accordingly.
+  </Step>
+  <Step title="React to the outcome">
+    Listen for the `investor.status_updated` webhook event, or poll `GET /v1/investors/{investor_id}/compliance` to check the current workflow status.
+  </Step>
+</Steps>
+
+## KYC workflow statuses
+
+| Workflow status | Investor account status | What it means |
+|---|---|---|
+| `running` | `onboarding` | Checks are actively processing |
+| `awaiting_review` | `under_review` | Manual review by the Buildmarkets compliance team is required |
+| `approved` | `active` | All checks passed; the investor can trade and fund |
+| `declined` | `declined` | Identity could not be verified; account cannot be activated |
+| `suspended` | `suspended` | Account temporarily restricted; contact Buildmarkets support |
+| `expired` | `onboarding` | Workflow timed out; restart to try again |
+
+## Check the compliance status
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/compliance \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+**Example response (approved):**
+
+```json
+{
+  "object": "compliance_workflow",
+  "livemode": false,
+  "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "workflow_status": "APPROVED",
+  "workflow_type": "kyc",
+  "risk_level": "low",
+  "status": "approved",
+  "checks": [
+    {
+      "type": "identity_verification",
+      "status": "clear",
+      "completed_at": "2025-06-01T10:05:00.000Z"
+    },
+    {
+      "type": "screening",
+      "status": "clear",
+      "completed_at": "2025-06-01T10:05:00.000Z"
+    },
+    {
+      "type": "risk_assessment",
+      "status": "clear",
+      "completed_at": "2025-06-01T10:05:00.000Z"
+    }
+  ],
+  "created_at": "2025-06-01T10:00:00.000Z",
+  "updated_at": "2025-06-01T10:05:00.000Z"
+}
+```
+
+## Submit a compliance check result
+
+If your integration uses an async verification SDK (such as the Persona inquiry widget), submit the provider's completion payload once the user finishes the verification flow:
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/compliance/submit \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": "cw_01j9x8m2k7qpzwv3t5r6y8n0ab",
+    "check_type": "identity_verification",
+    "provider_payload": {
+      "event_type": "inquiry.approved",
+      "inquiry_id": "inq_abc123def456",
+      "status": "approved"
+    }
+  }'
+```
+
+## Restart a declined workflow
+
+If the investor's workflow was declined and the investor wants to re-verify, restart the compliance workflow. This initiates a fresh workflow and returns new SDK handoff data:
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/compliance/restart \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+## Handling each outcome
+
+| Outcome | Recommended action |
+|---|---|
+| `approved` | Allow the investor to fund their account and begin trading. |
+| `awaiting_review` | Show a "review in progress" state in your UI. Subscribe to `investor.status_updated` webhook to notify the investor when review completes. |
+| `awaiting_documents` | Prompt the investor to upload supporting identity documents. Use `POST /v1/accounts/{accountId}/documents/upload` to submit them. |
+| `declined` | Inform the investor that verification was unsuccessful. Offer the option to re-submit via `POST /v1/investors/{investor_id}/compliance/restart`. |
+| `expired` | Restart the workflow. Expired workflows typically occur when an async verification SDK session times out. |
+
+<Warning>
+  Do not allow investors in any status other than `active` to place orders or initiate funding. The API will reject these requests, but your UI should prevent the attempt to provide a clear user experience.
+</Warning>
+
+## Regulatory disclosures
+
+The following disclosure fields are required by FINRA and FATF regulations. Collect them during your onboarding flow and submit accurate values at investor creation time.
+
+| Field | Description |
+|---|---|
+| `is_control_person` | Whether the investor is a control person (10%+ shareholder or officer) of a publicly traded company |
+| `is_affiliated_exchange_or_finra` | Whether the investor or their spouse is affiliated with a FINRA member or securities exchange |
+| `is_politically_exposed` | Whether the investor is a senior foreign political figure |
+| `immediate_family_exposed` | Whether an immediate family member is a politically exposed person |
+
+All four fields default to `false` if omitted, but you must present the relevant disclosure language to your end user before creating the investor account.
+
+## Sandbox testing
+
+In the sandbox environment, control KYC outcomes by using a specific SSN suffix when creating an investor:
+
+| SSN suffix | Outcome |
+|---|---|
+| `0001` | `approved` — instantly |
+| `0002` | `declined` |
+| `0003` | `awaiting_review` — manual review required |
+
+For example, creating an investor with `tax_id: "111-22-0001"` immediately transitions the compliance workflow to `approved` and the investor account to `active`. Use suffix `0003` to test your manual review and document upload flows.

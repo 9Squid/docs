@@ -1,0 +1,226 @@
+---
+title: "Safe Retries with Idempotency in the Buildmarkets API"
+sidebarTitle: "Idempotency"
+description: "Use client_order_id and other idempotency fields to safely retry financial operations without risk of duplicate orders, deposits, or withdrawals."
+---
+
+Network failures, timeouts, and server errors are a normal part of operating any distributed system — but in financial APIs, a failed request that you retry without the right safeguards can turn into a duplicate order, a double deposit, or a second withdrawal your investor never intended. Buildmarkets gives you two mechanisms to make write operations safe to retry: the `client_order_id` field on trading requests, and the `Idempotency-Key` request header on transfer operations. Together, they guarantee that no matter how many times you send the same logical operation, Buildmarkets processes it exactly once.
+
+---
+
+## Why idempotency matters for financial APIs
+
+Consider what happens when you submit an order request and your connection drops before you receive a response. Did the request reach Buildmarkets? Did it get processed? You do not know — so you retry. Without an idempotency key, Buildmarkets has no way to distinguish your retry from a brand-new request. It processes it again, and your investor's account now has two open orders instead of one.
+
+With an idempotency key, Buildmarkets recognises the retry as a duplicate and returns the original response — no second order is created, no second withdrawal is initiated, no funds move twice.
+
+<Warning>
+  Never retry a write request (order placement, deposit, withdrawal) without supplying an idempotency key. Retrying without one may create duplicate financial transactions in your investor's account.
+</Warning>
+
+---
+
+## `client_order_id` for orders
+
+Every order creation request accepts an optional `client_order_id` — a unique string you generate and control. When you include `client_order_id`, Buildmarkets uses it as the idempotency key for that order request scoped to the investor.
+
+**Behaviour:**
+- If you submit an order with a `client_order_id` that has never been seen before, Buildmarkets creates the order and returns `201 Created`.
+- If you submit an order with a `client_order_id` that already exists **for the same investor**, Buildmarkets returns the original order response — no new order is created.
+- If you submit a request with a `client_order_id` that already exists but with a **different body** (different symbol, quantity, or side), Buildmarkets returns a `409 Conflict` with code `BLUM-409-002`.
+
+### Endpoint
+
+```
+POST /v1/investors/{investor_id}/orders
+```
+
+### Example: place an order with `client_order_id`
+
+<Tabs>
+  <Tab title="Sandbox">
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "symbol": "AAPL",
+        "class": "equity",
+        "type": "market",
+        "side": "buy",
+        "quantity": "10",
+        "time_in_force": "day",
+        "client_order_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      }'
+    ```
+  </Tab>
+  <Tab title="Production">
+    ```bash
+    curl -X POST https://api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "symbol": "AAPL",
+        "class": "equity",
+        "type": "market",
+        "side": "buy",
+        "quantity": "10",
+        "time_in_force": "day",
+        "client_order_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+If this request times out and you retry it with the same `client_order_id`, Buildmarkets returns the original order rather than creating a second one. Your investor ends up with exactly one order for 10 shares of AAPL.
+
+### Example response (first request or retry)
+
+```json
+{
+  "id": "ord_01j9x8m2k7qpzwv3t5r6y8n0cd",
+  "object": "order",
+  "created": 1747776000,
+  "livemode": true,
+  "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "symbol": "AAPL",
+  "class": "equity",
+  "type": "market",
+  "side": "buy",
+  "quantity": "10",
+  "time_in_force": "day",
+  "status": "pending",
+  "client_order_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "filled_quantity": "0",
+  "remaining_quantity": "10"
+}
+```
+
+---
+
+## `Idempotency-Key` header for transfers
+
+Deposit and withdrawal requests accept an `Idempotency-Key` request header. Like `client_order_id` for orders, this header tells Buildmarkets to treat the request as a retry of a previous operation rather than a new one.
+
+Supply the header as a UUID v4 string, up to 128 characters:
+
+```
+Idempotency-Key: b2c3d4e5-f6a7-8901-bcde-f12345678901
+```
+
+**Behaviour:**
+- On the first request with a given key, Buildmarkets processes the operation and caches the response.
+- On any subsequent request with the same key (same investor, same resource type), Buildmarkets returns the cached response without re-executing the operation.
+- If the body differs from the original request for the same key, Buildmarkets returns a `409 Conflict` with type `idempotency_error`.
+
+### Example: initiate a deposit with `Idempotency-Key`
+
+```bash
+curl -X POST https://api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/deposits \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+  -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+  -H "Idempotency-Key: b2c3d4e5-f6a7-8901-bcde-f12345678901" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "500.00",
+    "currency": "USD",
+    "method": "ach"
+  }'
+```
+
+### Example: initiate a withdrawal with `Idempotency-Key`
+
+```bash
+curl -X POST https://api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/withdrawals \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+  -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+  -H "Idempotency-Key: c3d4e5f6-a7b8-9012-cdef-123456789012" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "250.00",
+    "currency": "USD"
+  }'
+```
+
+---
+
+## Scope of idempotency keys
+
+Idempotency keys are scoped to **investor + resource type**. This means:
+
+- The same `client_order_id` value can be reused across **different investors** without conflict. Buildmarkets only deduplicates within the same investor's order namespace.
+- The same `Idempotency-Key` header value can be reused across different resource types (e.g. once for a deposit and once for a withdrawal) without conflict. Buildmarkets evaluates uniqueness per endpoint.
+
+Keep your key generation strategy consistent: one unique key per logical operation, per investor, per resource type.
+
+---
+
+## Handling timeouts vs. confirmed errors
+
+When a request fails, the appropriate next action depends on **why** it failed:
+
+<Steps>
+  <Step title="Network timeout or connection reset">
+    You do not know whether the request reached Buildmarkets. **Retry the exact same request** with the same idempotency key. Buildmarkets will either return the original response (if the request was processed) or process it fresh (if it was not).
+  </Step>
+  <Step title="5xx server error">
+    The request reached Buildmarkets but something went wrong on its side. **Retry with exponential backoff** using the same idempotency key. These errors are transient.
+  </Step>
+  <Step title="4xx client error">
+    The request was processed and rejected because of a problem with your request (bad input, insufficient funds, etc.). **Do not retry** without fixing the underlying issue — the same request will receive the same rejection.
+  </Step>
+  <Step title="409 Conflict with type idempotency_error">
+    You sent the same key with a different request body. **Do not retry**. Investigate whether the body was accidentally mutated between attempts. Generate a new key if you intend a genuinely different operation.
+  </Step>
+</Steps>
+
+---
+
+## Best practices
+
+<Accordion title="Use UUID v4 for every key">
+  Generate your idempotency keys with a UUID v4 library — they are cryptographically random and collision-resistant at scale. Avoid predictable patterns like sequential integers or timestamps alone.
+
+  ```javascript
+  import { v4 as uuidv4 } from 'uuid';
+
+  const clientOrderId = uuidv4();
+  // e.g. "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  ```
+</Accordion>
+
+<Accordion title="Always set a key on every write operation">
+  Treat idempotency keys as mandatory, not optional. Wrap your HTTP client so that every `POST` to a Buildmarkets write endpoint automatically includes a generated key — this way you can never accidentally omit one under retry logic.
+</Accordion>
+
+<Accordion title="Persist the key before you send the request">
+  Store the key (and what it represents) in your own database **before** you send the request to Buildmarkets. If your process crashes after sending but before receiving a response, you can look up the key on restart and retry with it — rather than generating a new one and potentially duplicating the operation.
+</Accordion>
+
+<Accordion title="Do not reuse keys for different operations">
+  Each distinct financial operation — each order, each deposit, each withdrawal — must have its own unique key. Never reuse a key from a previous successful operation for a new operation, even if the parameters look identical.
+</Accordion>
+
+<Accordion title="Set a reasonable key TTL in your system">
+  You do not need to store idempotency keys forever. A rolling window of 24–72 hours is typically sufficient to cover any realistic retry window. After that, treat the key as expired in your own records.
+</Accordion>
+
+---
+
+## Summary
+
+| Resource | Idempotency mechanism | Scope |
+|---|---|---|
+| Orders | `client_order_id` field in request body | Per investor, per order type |
+| Deposits | `Idempotency-Key` request header | Per investor, per deposit endpoint |
+| Withdrawals | `Idempotency-Key` request header | Per investor, per withdrawal endpoint |
+| Rebalances | `Idempotency-Key` request header (required) | Per portfolio rebalance operation |
+
+---
+
+## Next steps
+
+- [Errors →](/platform/errors) — Understand `409 Conflict` and `idempotency_error` responses
+- [Webhooks →](/platform/webhooks) — Receive authoritative confirmation of order fills and funding settlements instead of polling

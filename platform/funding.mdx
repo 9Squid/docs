@@ -1,0 +1,212 @@
+---
+title: "ACH Deposits and Withdrawals via Plaid"
+sidebarTitle: "Funding"
+description: "Link investor bank accounts using Plaid Link, then initiate ACH deposits and withdrawals. Covers the full funding lifecycle and settlement timing."
+---
+
+Before an investor can trade, they need to fund their brokerage account. Buildmarkets uses Plaid to securely connect external bank accounts, and then exposes simple deposit and withdrawal endpoints on top of those connections. You can also connect bank accounts manually for ACH or wire transfers. This page walks through the complete funding flow from bank connection to settled cash.
+
+## The Plaid Link flow
+
+Plaid Link is the standard way to connect a bank account. The flow has three steps:
+
+<Steps>
+  <Step title="Create a link token">
+    Call `POST /v1/investors/{investor_id}/funding-sources/plaid/link-token` to obtain a short-lived token. This token initializes Plaid Link in your app.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/funding-sources/plaid/link-token \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{ "enable_hosted_link": false }'
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "status": "success",
+      "data": {
+        "link_token": "link-sandbox-abc123def456",
+        "hosted_link_url": null
+      }
+    }
+    ```
+  </Step>
+  <Step title="User connects their bank">
+    Pass the `link_token` to the [Plaid Link SDK](https://plaid.com/docs/link/) in your web or mobile app. The investor selects their bank, logs in, and selects an account. On success, Plaid returns a `public_token` to your app's callback handler.
+
+    <Tip>
+      Set `enable_hosted_link: true` to receive a `hosted_link_url` instead of a `link_token`. This redirects the investor to a Plaid-hosted page — useful for apps that cannot embed the Plaid SDK.
+    </Tip>
+  </Step>
+  <Step title="Connect the funding source">
+    Exchange the `public_token` with Buildmarkets. This creates one or more `FundingSource` records — one per bank account the investor selected in Plaid Link.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/funding-sources/connect \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "type": "plaid",
+        "public_token": "public-sandbox-1234abcd-5678-90ef"
+      }'
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "object": "list",
+      "has_more": false,
+      "data": [
+        {
+          "id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef",
+          "object": "funding_source",
+          "type": "plaid",
+          "status": "active",
+          "bank_name": "Chase",
+          "account_holder_name": "Jane Doe",
+          "bank_account_type": "CHECKING",
+          "currency": "USD"
+        }
+      ]
+    }
+    ```
+  </Step>
+</Steps>
+
+## Initiate an ACH deposit
+
+Once a funding source is connected, use its `id` to initiate a deposit:
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/deposits \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "1000.00",
+    "currency": "USD",
+    "method": "ach",
+    "funding_source_id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "id": "dep_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "object": "deposit",
+  "method": "ach",
+  "status": "pending",
+  "amount": "1000.00",
+  "currency": "USD",
+  "funding_source_id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef",
+  "initiated_at": "2025-06-01T10:00:00.000Z",
+  "completed_at": null,
+  "failure_reason": null
+}
+```
+
+## Initiate an ACH withdrawal
+
+Withdrawals send cash from the brokerage account back to the investor's linked bank:
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/withdrawals \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "500.00",
+    "currency": "USD",
+    "method": "ach",
+    "funding_source_id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef"
+  }'
+```
+
+<Warning>
+  You can only withdraw `cash_withdrawable` — settled cash not reserved by open orders. Check the investor's wallet balance before initiating a withdrawal to avoid `400` errors for insufficient funds.
+</Warning>
+
+## Cancel a pending transfer
+
+Cancel a deposit or withdrawal that has not yet been processed:
+
+```bash
+# Cancel a deposit
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/deposits/DEPOSIT_ID/cancel \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+
+# Cancel a withdrawal
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/withdrawals/WITHDRAWAL_ID/cancel \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Cancellation is only possible while the transfer is in `pending` status. Once processing begins, the transfer cannot be cancelled.
+
+## Wire deposits
+
+To accept wire transfers, initiate a deposit with `method: "manual_bank_transfer"`. Buildmarkets generates a unique reference code and returns domestic (and optionally international) wire instructions:
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/deposits \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "5000.00",
+    "currency": "USD",
+    "method": "manual_bank_transfer"
+  }'
+```
+
+The response includes `method_details.reference_code` and `method_details.bank_details` with routing/account numbers. Have the investor include the reference code in their wire memo. You can also download a formatted PDF of the wire instructions:
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/deposits/DEPOSIT_ID/wire-details \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  --output wire-instructions.pdf
+```
+
+## Funding transfer states
+
+| Status | Meaning |
+|---|---|
+| `pending` | Transfer initiated; awaiting processing |
+| `processing` | Transfer is actively being processed by the ACH network |
+| `completed` | Funds have settled; cash is available in the wallet |
+| `failed` | Transfer failed; see `failure_reason` for details |
+| `cancelled` | Transfer was cancelled before processing began |
+
+Subscribe to the `deposit.status_updated` and `withdrawal.status_updated` webhook events to receive real-time notifications as transfers move through these states.
+
+## Settlement timing
+
+| Transfer type | Sandbox | Production |
+|---|---|---|
+| ACH deposit | Instant | 1–3 business days |
+| ACH withdrawal | Instant | 1–3 business days |
+| Wire deposit | Instant | Same day (when received before cutoff) |
+
+## Funding endpoints summary
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/v1/investors/{id}/funding-sources/plaid/link-token` | Create a Plaid Link token |
+| `POST` | `/v1/investors/{id}/funding-sources/connect` | Connect a bank account (Plaid or manual) |
+| `GET` | `/v1/investors/{id}/funding-sources` | List connected funding sources |
+| `DELETE` | `/v1/investors/{id}/funding-sources/{fs_id}` | Remove a funding source |
+| `POST` | `/v1/investors/{id}/deposits` | Initiate a deposit |
+| `GET` | `/v1/investors/{id}/deposits` | List deposits |
+| `POST` | `/v1/investors/{id}/deposits/{dep_id}/cancel` | Cancel a pending deposit |
+| `POST` | `/v1/investors/{id}/withdrawals` | Initiate a withdrawal |
+| `GET` | `/v1/investors/{id}/withdrawals` | List withdrawals |
+| `POST` | `/v1/investors/{id}/withdrawals/{wd_id}/cancel` | Cancel a pending withdrawal |

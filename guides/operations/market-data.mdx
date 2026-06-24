@@ -1,0 +1,314 @@
+---
+title: "Access Real-Time and Historical Market Data"
+sidebarTitle: "Market Data"
+description: "Fetch real-time quotes, OHLCV historical bars, market status, trading calendar, and asset fundamentals using the Buildmarkets market data API."
+---
+
+The Buildmarkets market data API gives you programmatic access to live quotes, historical price bars, market status, trading calendars, halt notifications, and asset reference data. Use these endpoints to power watchlists, stock detail pages, order previews, and any other feature that depends on current or historical prices.
+
+<Note>
+Market status and calendar endpoints (`/v1/markets/*`) are available to every tenant at no additional cost. Real-time quotes, historical bars, snapshots, and company fundamentals are part of the Market Data product — confirm with Buildmarkets that your tenant has access before using those endpoints.
+</Note>
+
+---
+
+## Market status
+
+Before placing an order, check whether the relevant exchange is currently open for trading. The status endpoint returns a FIX-aligned session state along with today's schedule and any active halts.
+
+### `GET /v1/markets/{code}/status`
+
+```bash
+curl https://api.tappengine.com/v1/markets/XNAS/status \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+The response includes a `session_status` field with one of the following values:
+
+| Status | Meaning |
+|--------|---------|
+| `OPEN` | Regular trading session is active |
+| `PRE_OPEN` | Pre-market session |
+| `EXTENDED` | Extended-hours trading |
+| `PRE_CLOSE` | Market is approaching close |
+| `HALTED` | Trading is currently halted |
+| `CLOSED` | Market is closed |
+
+<Tip>
+Check market status before placing orders to avoid after-hours rejections. Your order submission logic should gate on `session_status === "OPEN"` unless your product explicitly supports extended-hours trading.
+</Tip>
+
+### Market codes
+
+Pass market MIC codes as the `{code}` path parameter. Common codes include:
+
+| Code | Exchange |
+|------|----------|
+| `XNAS` | NASDAQ |
+| `XNYS` | New York Stock Exchange (NYSE) |
+| `XNSA` | Nigerian Exchange (NGX) |
+
+---
+
+## Trading calendar
+
+Retrieve the full trading schedule for a market in a given year, including regular session days, holidays, and early-close dates.
+
+### `GET /v1/markets/{code}/calendar`
+
+```bash
+curl "https://api.tappengine.com/v1/markets/XNAS/calendar?year=2026" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Use the optional `year` query parameter to fetch a specific year's calendar (defaults to the current year). The response returns an ordered list of trading days with open and close times in the market's local timezone.
+
+---
+
+## Market halts
+
+Check for active or recent trading halts — either market-wide suspensions or per-symbol halts — that may affect order routing.
+
+### `GET /v1/markets/{code}/halts`
+
+```bash
+curl "https://api.tappengine.com/v1/markets/XNAS/halts?active=true" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+| Query parameter | Type | Description |
+|-----------------|------|-------------|
+| `active` | boolean | When `true`, returns only unresolved halts. Defaults to `false` |
+| `since` | ISO 8601 datetime | Return only halts that started at or after this timestamp |
+| `limit` | integer | Maximum number of results (default 100, max 500) |
+
+Halt objects include a `symbol` field (null for market-wide halts) and `started_at` / `resumed_at` timestamps.
+
+---
+
+## Asset search
+
+Search for assets by ticker symbol, company name, or partial match before you look up quotes or place orders.
+
+### `GET /v1/market-data/assets/search`
+
+```bash
+curl "https://api.tappengine.com/v1/market-data/assets/search?q=AAPL" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+<CodeGroup>
+
+```bash Search by ticker
+curl "https://api.tappengine.com/v1/market-data/assets/search?q=AAPL" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+```bash Search by name with filters
+curl "https://api.tappengine.com/v1/market-data/assets/search?q=Apple&class=equity&market=XNAS&limit=10" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+</CodeGroup>
+
+| Query parameter | Type | Description |
+|-----------------|------|-------------|
+| `q` | string | **Required.** Ticker, company name, or partial match |
+| `market` | string | Filter by MIC code (e.g., `XNAS`, `XNYS`) |
+| `class` | string | Filter by instrument class: `equity`, `etf`, `bond`, `mutual_fund`, etc. |
+| `country` | string | Filter by ISO 3166-1 alpha-2 country code (e.g., `us`, `ng`) |
+| `limit` | integer | Max results (default 50, max 100) |
+
+---
+
+## Asset details
+
+Retrieve the full profile and latest quote for a single asset by its ticker symbol.
+
+### `GET /v1/market-data/assets/{symbol}`
+
+```bash
+curl "https://api.tappengine.com/v1/market-data/assets/AAPL" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Use the optional `market` query parameter to disambiguate symbols that are listed on multiple exchanges.
+
+```bash
+curl "https://api.tappengine.com/v1/market-data/assets/AAPL?market=XNAS" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+---
+
+## Real-time quotes
+
+Fetch the latest bid, ask, last price, and additional quote metadata for a single asset.
+
+### `GET /v1/market-data/assets/{symbol}/quote`
+
+```bash
+curl "https://api.tappengine.com/v1/market-data/assets/AAPL/quote" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+The response includes price, bid/ask, currency, a confidence level indicating data freshness, and the upstream data source.
+
+```json
+{
+  "status": "success",
+  "data": {
+    "symbol": "AAPL",
+    "price": "213.49",
+    "bid": "213.47",
+    "ask": "213.51",
+    "bid_size": 200,
+    "ask_size": 150,
+    "currency": "USD",
+    "confidence": "real_time",
+    "source": "quotemedia",
+    "timestamp": "2026-03-24T14:00:00Z"
+  }
+}
+```
+
+---
+
+## Historical OHLCV bars
+
+Retrieve historical price bars for charting, backtesting, or performance calculations.
+
+### `GET /v1/market-data/assets/{symbol}/bars`
+
+The `timeframe` parameter is **required**. You can request bars ranging from one-minute granularity up to monthly aggregates.
+
+```bash
+curl "https://api.tappengine.com/v1/market-data/assets/AAPL/bars?timeframe=1Day&start=2026-01-01T00:00:00Z&end=2026-03-01T00:00:00Z" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+| Query parameter | Type | Description |
+|-----------------|------|-------------|
+| `timeframe` | string | **Required.** One of: `1Min`, `5Min`, `15Min`, `30Min`, `1Hour`, `1Day`, `1Week`, `1Month` |
+| `start` | ISO 8601 datetime | Start of the date range |
+| `end` | ISO 8601 datetime | End of the date range |
+| `limit` | integer | Max bars to return (default 100, max 10,000) |
+| `adjustment` | string | Price adjustment: `raw`, `split`, `dividend`, or `all` (default `raw`) |
+| `market` | string | Market hint for disambiguation |
+
+<Tabs>
+  <Tab title="Daily bars">
+```bash
+curl "https://api.tappengine.com/v1/market-data/assets/AAPL/bars?timeframe=1Day&start=2026-01-01T00:00:00Z&limit=90" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+  </Tab>
+  <Tab title="Intraday bars">
+```bash
+curl "https://api.tappengine.com/v1/market-data/assets/AAPL/bars?timeframe=5Min&start=2026-03-24T09:30:00Z&end=2026-03-24T16:00:00Z" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+  </Tab>
+  <Tab title="Split-adjusted">
+```bash
+curl "https://api.tappengine.com/v1/market-data/assets/AAPL/bars?timeframe=1Day&adjustment=all&limit=252" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+  </Tab>
+</Tabs>
+
+Use `adjustment=all` when computing returns or comparing prices across dates that span a stock split or dividend distribution.
+
+<Note>
+For Nigerian Exchange (NGX / XNSA) assets, only daily closing prices are available from the upstream data provider. A `dataQuality` object is included in the response when limitations apply.
+</Note>
+
+---
+
+## Full asset snapshot
+
+For the most comprehensive view of a single asset — latest trade, bid/ask, today's OHLCV bar, previous close, and change calculations — use the snapshot endpoint.
+
+### `GET /v1/market-data/assets/{symbol}/snapshot`
+
+```bash
+curl "https://api.tappengine.com/v1/market-data/assets/AAPL/snapshot" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+---
+
+## Additional market data endpoints
+
+<Accordion title="Company fundamentals">
+Retrieve descriptive and valuation data for a company, including sector classification, P/E ratio, market cap, and employee count.
+
+```bash
+curl "https://api.tappengine.com/v1/marketdata/company-profile/AAPL" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+For structured financial statements — income statement, balance sheet, and cash flow data — use the balance sheet endpoint:
+
+```bash
+curl "https://api.tappengine.com/v1/marketdata/balance-sheet/AAPL?statementType=annual&numberOfReports=4" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+</Accordion>
+
+<Accordion title="News and corporate actions">
+Fetch recent news articles and corporate action events for a symbol, returned in reverse chronological order.
+
+```bash
+curl "https://api.tappengine.com/v1/marketdata/news/AAPL?limit=10" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+</Accordion>
+
+<Accordion title="Dividend history">
+Retrieve historical cash dividend records including ex-date, pay date, and per-share amount. Supports date range filtering and CUSIP/ISIN lookup.
+
+```bash
+curl "https://api.tappengine.com/v1/marketdata/cash-dividends/AAPL?excludingFrom=2025-01-01&excludingTo=2025-12-31" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+</Accordion>
+
+<Accordion title="Company logos">
+Retrieve a hosted logo image URL for display in your UI. Cache the URL on your side — logos are stable and do not change frequently.
+
+```bash
+curl "https://api.tappengine.com/v1/marketdata/logos/AAPL" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+</Accordion>
+
+---
+
+## Common errors
+
+| HTTP status | Error | Cause |
+|-------------|-------|-------|
+| `400` | `INVALID_SYMBOL` | Symbol format is not recognized |
+| `404` | `SYMBOL_NOT_FOUND` | No data found for the requested symbol |
+| `404` | `NOT_FOUND` | Market code does not exist |
+| `429` | `RATE_LIMIT_EXCEEDED` | Too many requests in a short window |

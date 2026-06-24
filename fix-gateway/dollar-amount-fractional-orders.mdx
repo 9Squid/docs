@@ -1,0 +1,76 @@
+---
+title: "Dollar-Amount and Fractional Share Orders via FIX"
+sidebarTitle: "Fractional Orders"
+description: "Submit notional (dollar-amount) orders and fractional share orders through the Buildmarkets FIX gateway — supported on market orders for fractionable securities."
+---
+
+The Buildmarkets FIX gateway supports two specialised order entry modes that go beyond standard whole-share quantities: **dollar-amount (notional) orders**, where you specify how many dollars to invest rather than how many shares to buy; and **fractional share orders**, where you specify a non-integer share quantity such as `0.5`. Both modes use the same New Order Single message (`MsgType=D`) with specific tag values to signal the intent.
+
+<Note>
+Fractional and dollar-amount orders are only supported for market order types (`OrdType=1`) on fractionable securities. Limit, Stop, and Stop Limit order types are not supported for either mode.
+</Note>
+
+## Dollar-Amount (Notional) Orders
+
+A dollar-amount order lets you specify a target investment value in USD rather than a share count. The gateway converts the dollar amount into the appropriate fractional share quantity using current market pricing at execution time.
+
+For example, a $100 notional order on a security trading at $228.50 would execute as approximately 0.4376 shares.
+
+**Required tag configuration for dollar-amount orders:**
+
+| Tag | Field | Value | Notes |
+|---|---|---|---|
+| 38 | OrderQty | `0` | Must be exactly `0` — signals that `CashOrderQty` determines the trade size |
+| 40 | OrdType | `1` | Market order only |
+| 152 | CashOrderQty | e.g. `100` | Dollar amount to invest, as a decimal number |
+
+### Example — $100 notional buy order for AAPL
+
+```fix
+8=FIX.4.4|35=D|49=CLIENT1|56=BUILDMARKETS|34=5|52=20260212-14:22:30.000|
+11=ORD-20260212-NOTIONAL-001|1=ACC123456789|55=AAPL|167=CS|54=1|
+38=0|40=1|59=0|60=20260212-14:22:30.000|152=100|10=123|
+```
+
+<Warning>
+If `OrderQty=0` and `CashOrderQty` is absent, the order will be rejected. Always include Tag 152 when sending a notional order, and always set Tag 38 to `0`.
+</Warning>
+
+## Fractional Share Orders
+
+A fractional share order specifies a decimal quantity in `OrderQty` (Tag 38). The gateway accepts quantities such as `0.5`, `1.75`, or `2.333` for securities that are eligible for fractional trading.
+
+**Required tag configuration for fractional share orders:**
+
+| Tag | Field | Value | Notes |
+|---|---|---|---|
+| 38 | OrderQty | e.g. `0.5` | Decimal share quantity — must be greater than `0` |
+| 40 | OrdType | `1` | Market order only |
+
+### Example — Buy 0.5 shares of AAPL at market
+
+```fix
+8=FIX.4.4|35=D|49=CLIENT1|56=BUILDMARKETS|34=6|52=20260212-14:23:00.000|
+11=ORD-20260212-FRAC-001|1=ACC123456789|55=AAPL|167=CS|54=1|
+38=0.5|40=1|59=0|60=20260212-14:23:00.000|10=089|
+```
+
+## Fractionable Securities
+
+Not all securities support fractional or notional trading. A security must be designated as fractionable by the exchange and enabled on your account for these order modes to work. Submitting a notional or fractional order against a non-fractionable security will result in a Business Message Reject (`MsgType=j`) or an Execution Report with `ExecType=8` (Rejected).
+
+Contact Buildmarkets support to confirm which securities are eligible for fractional trading on your account.
+
+## Summary
+
+| Feature | Dollar-Amount Order | Fractional Share Order |
+|---|---|---|
+| Tag 38 (OrderQty) | `0` | Decimal quantity (e.g. `0.5`) |
+| Tag 152 (CashOrderQty) | Dollar amount (e.g. `100`) | Not used |
+| Tag 40 (OrdType) | `1` (Market) | `1` (Market) |
+| Security requirement | Must be fractionable | Must be fractionable |
+| Limit/Stop support | Not supported | Not supported |
+
+<Tip>
+Execution Reports for fractional and dollar-amount orders will reflect the actual executed fractional quantity in Tag 32 (`LastQty`) and the average fill price in Tag 6 (`AvgPx`). Your OMS should be configured to handle non-integer quantities in these fields.
+</Tip>

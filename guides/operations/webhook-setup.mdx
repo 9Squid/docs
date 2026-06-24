@@ -1,0 +1,220 @@
+---
+title: "Set Up Webhooks for Real-Time Event Notifications"
+sidebarTitle: "Webhook Setup"
+description: "Register a Buildmarkets webhook endpoint, subscribe to order and funding events, verify delivery, and build idempotent handlers for production use."
+---
+
+Webhooks let your application react to Buildmarkets events the moment they happen — a KYC decision, an order fill, a settled deposit — without polling the API. You register an HTTPS endpoint, tell Buildmarkets which events to send, and Buildmarkets delivers a signed JSON payload to your URL every time a matching event fires.
+
+<Steps>
+
+### Discover available event types
+
+Before registering a webhook, retrieve the full list of subscribable event types from the API. This is useful for validating event names before you pass them into your registration request.
+
+```bash
+curl https://api.tappengine.com/v1/webhooks/event-types \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+The response returns an array of event type objects. Each object includes the event `name` (the dot-notation string you use when subscribing), a `category`, and a human-readable `description`.
+
+### Register a webhook endpoint
+
+Call `POST /v1/webhooks` with your HTTPS endpoint URL, a name, and the list of event type names you want to receive. Pass at least one event type — you cannot create a webhook with an empty `eventTypeNames` array.
+
+```bash
+curl -X POST https://api.tappengine.com/v1/webhooks \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production webhook",
+    "url": "https://yourapp.com/webhooks/buildmarkets",
+    "description": "Order and funding lifecycle events",
+    "eventTypeNames": [
+      "order.filled",
+      "order.failed",
+      "transfer.deposit.completed",
+      "transfer.deposit.failed",
+      "transfer.withdrawal.completed",
+      "transfer.withdrawal.failed",
+      "kyc.verification.approved",
+      "kyc.verification.rejected"
+    ]
+  }'
+```
+
+A `201 Created` response includes your webhook's `id` and a one-time `secret` used to verify incoming payloads. **Copy the `secret` immediately** — it is never returned again. If you lose it, delete the webhook and create a new one.
+
+```json
+{
+  "status": "success",
+  "data": {
+    "webhook": {
+      "id": "wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6",
+      "name": "Production webhook",
+      "url": "https://yourapp.com/webhooks/buildmarkets",
+      "description": "Order and funding lifecycle events",
+      "status": "ACTIVE",
+      "secret": "whsec_xK9mP2qR7tNvL4jW8cB5yZ3hF6dE1sA0",
+      "event_types": [
+        { "name": "order.filled", "category": "order", "description": "Order fully filled" },
+        { "name": "transfer.deposit.completed", "category": "transfer", "description": "Deposit completed, wallet credited" }
+      ]
+    }
+  }
+}
+```
+
+<Warning>
+Store the `secret` in a secure environment variable or secrets manager immediately. It is shown exactly once in the `201` response and cannot be retrieved again.
+</Warning>
+
+### Handle incoming webhook payloads
+
+Buildmarkets delivers events as HTTP POST requests to your registered URL with `Content-Type: application/json`. Every payload shares a consistent envelope structure:
+
+```json
+{
+  "id": "evt_e1f2a3b4c5d6",
+  "event_type": "order.filled",
+  "created": 1748000000,
+  "data": {
+    "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+    "order_id": "ord_1a2b3c4d-5e6f-7a8b-9c0d-e1f2a3b4c5d6",
+    "symbol": "AAPL",
+    "side": "buy",
+    "order_type": "market",
+    "quantity": "10",
+    "filled_quantity": "10",
+    "average_fill_price": "213.49",
+    "status": "filled",
+    "filled_at": "2026-03-24T14:00:03Z"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier for this event delivery — use as your idempotency key |
+| `event_type` | string | Dot-notation event name (e.g., `order.filled`) |
+| `created` | integer | Unix timestamp when the event was generated |
+| `data` | object | Event-specific payload; fields vary by `event_type` |
+
+Before processing any payload, verify the HMAC-SHA256 signature in the `X-Buildmarkets-Signature` header using your webhook `secret`. See the [Webhook Events Reference](/guides/operations/webhook-setup) for full verification code examples.
+
+<Warning>
+Always validate the `event_type` and `investor_id` in your handler before processing. Never trust the payload content without first confirming the signature matches.
+</Warning>
+
+### Respond with 2xx within 5 seconds
+
+Buildmarkets expects your endpoint to return a `2xx` HTTP status code within **5 seconds** of receiving the request. Any non-`2xx` response — including redirects — is treated as a delivery failure and triggers a retry.
+
+If your handler performs database writes, downstream API calls, or other slow operations, return `200` immediately and process the event asynchronously in a background job or queue.
+
+```json
+{ "received": true }
+```
+
+Return this response body with HTTP `200` as soon as you accept the payload.
+
+### Handle retries idempotently
+
+Buildmarkets guarantees **at-least-once delivery**. Under rare network conditions, your endpoint may receive the same event more than once. Use the `id` field from the payload envelope as an idempotency key — record it in your database before processing and skip any event whose ID you have already seen.
+
+```javascript
+app.post('/webhooks/buildmarkets', async (req, res) => {
+  const event = req.body;
+
+  // Return 200 immediately
+  res.status(200).json({ received: true });
+
+  // Deduplicate using the event ID
+  const alreadyProcessed = await db.events.exists({ event_id: event.id });
+  if (alreadyProcessed) return;
+
+  await db.events.insert({ event_id: event.id, processed_at: new Date() });
+
+  // Now handle the event
+  switch (event.event_type) {
+    case 'order.filled':
+      await handleOrderFilled(event.data);
+      break;
+    case 'transfer.deposit.completed':
+      await handleDepositCompleted(event.data);
+      break;
+    // ...
+  }
+});
+```
+
+</Steps>
+
+---
+
+## Key event types
+
+Use these event names in your `eventTypeNames` array when registering a webhook.
+
+| Event | Fires when |
+|-------|-----------|
+| `order.created` | A trading order is created |
+| `order.filled` | An order is fully executed |
+| `order.failed` | An order execution fails |
+| `kyc.verification.approved` | KYC verification is approved; investor is active |
+| `kyc.verification.rejected` | KYC verification is rejected |
+| `transfer.deposit.completed` | A deposit settles and the wallet is credited |
+| `transfer.deposit.failed` | A deposit fails |
+| `transfer.withdrawal.completed` | A withdrawal completes and funds are sent |
+| `transfer.withdrawal.failed` | A withdrawal fails |
+| `account.created` | A new investor account is created |
+| `account.updated` | An investor account's details are updated |
+
+---
+
+## Managing webhooks
+
+### List all webhooks
+
+```bash
+curl https://api.tappengine.com/v1/webhooks \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+### Update a webhook
+
+Use `PATCH /v1/webhooks/{webhook_id}` to change the URL, update subscribed events, or pause delivery by setting `status` to `INACTIVE`.
+
+```bash
+curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6 \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "INACTIVE"
+  }'
+```
+
+### Delete a webhook
+
+```bash
+curl -X DELETE https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6 \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Returns `204 No Content` on success. Delivery stops immediately and cannot be undone.
+
+<Note>
+When a webhook is set to `INACTIVE`, Buildmarkets does not queue events that fire during the paused window. Use the relevant API endpoints to reconcile any state changes you may have missed.
+</Note>
+
+---
+
+<Tip>
+Use a tool like [ngrok](https://ngrok.com) to expose your local development server to the internet during development. Run `ngrok http 3000` to get a public HTTPS URL, then register that URL as your sandbox webhook endpoint.
+</Tip>

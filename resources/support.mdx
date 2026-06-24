@@ -1,0 +1,140 @@
+---
+title: "Buildmarkets Support: Get Help with Your Integration"
+sidebarTitle: "Support"
+description: "Reach the Buildmarkets team for technical support, report API issues, or escalate integration problems. Includes support channels and SLA information."
+---
+
+Buildmarkets provides dedicated developer support for integration questions, API issues, and production access requests. For most questions, the fastest path to an answer is checking the self-service resources below — but when you need to reach the team directly, this page explains how to do it effectively.
+
+## Support channels
+
+<CardGroup cols={2}>
+  <Card title="Developer Support" icon="envelope" href="mailto:support@buildmarkets.com">
+    Email [support@buildmarkets.com](mailto:support@buildmarkets.com) for integration help, technical questions, API issues, scope changes, and production access requests. Include your `request_id` and environment for the fastest response.
+  </Card>
+
+  <Card title="System Status" icon="signal" href="https://status.buildmarkets.com">
+    Check [status.buildmarkets.com](https://status.buildmarkets.com) for live incident reports, component health, and scheduled maintenance windows. Always check here first when experiencing unexpected API failures.
+  </Card>
+</CardGroup>
+
+## When to use each channel
+
+| Situation | Best channel |
+| --- | --- |
+| Integration question or code review | Developer Support |
+| API error you cannot resolve from the docs | Developer Support |
+| Requesting an additional API scope | Developer Support |
+| Production access request | Developer Support |
+| Active incident or unexpected downtime | System Status (check first) |
+| Managing API credentials | Partner Dashboard |
+| Checking historical API request logs | Partner Dashboard |
+
+## What to include in a support request
+
+The more context you provide upfront, the faster the Buildmarkets team can diagnose and resolve your issue. When you email Developer Support, include:
+
+| Field | What to provide |
+| --- | --- |
+| **Company name** | Your company name and Partner Dashboard account email |
+| **Environment** | Whether the issue is in sandbox or production |
+| **`request_log_url`** | The deep link from the error response body — this is the most useful field |
+| **Error `code`** | The `BLUM-{STATUS}-{SEQ}` code from the error response (e.g., `BLUM-422-001`) |
+| **`investor_id`** | The prefixed ID of the affected investor, if applicable (e.g., `inv_01j9x8…`) |
+| **`order_id` / `deposit_id`** | The ID of the affected order or transfer, if applicable |
+| **Timestamp** | When the issue occurred, in UTC |
+| **Steps to reproduce** | The endpoint you called, the full request body or parameters, and the complete error response |
+
+<Note>
+  Never include your API secret in a support ticket, code samples, or any communication with the Buildmarkets team. Your API secret is equivalent to a password. Include only your **API key ID** — it is safe to share and lets the team look up your tenant in the dashboard.
+</Note>
+
+<Tip>
+  The `request_log_url` field in every API error response is the single most useful piece of information for diagnosing an issue — it links directly to the full request log in the Partner Dashboard. Log this value alongside every outbound API call so you always have it on hand when needed.
+</Tip>
+
+## Writing an effective support ticket
+
+A well-written support ticket gets resolved faster. Use this template:
+
+```
+Subject: [API Issue] BLUM-422-001 on POST /v1/investors/{investor_id}/orders
+
+Environment: sandbox / production
+Company: Acme Finance
+API Key ID: (your key ID — not the secret)
+
+Issue:
+Placing a market buy order for AAPL returns BLUM-422-001 (insufficient buying power),
+but the investor has $5,000 in buying_power per the investor object.
+
+investor_id: inv_01j9x8m2k7qpzwv3t5r6y8n0ab
+order_id: (none — order was rejected before creation)
+Timestamp: 2025-06-01T14:32:00Z
+request_log_url: https://dashboard.buildmarkets.com/logs/req_abc123xyz
+
+Request:
+POST /v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders
+{
+  "symbol": "AAPL",
+  "side": "buy",
+  "type": "market",
+  "time_in_force": "day",
+  "notional": "4800.00"
+}
+
+Error response:
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "BLUM-422-001",
+    "message": "Insufficient buying power.",
+    "request_log_url": "https://dashboard.buildmarkets.com/logs/req_abc123xyz"
+  }
+}
+
+Steps to reproduce:
+1. Create investor with sandbox SSN suffix 0001 (approved)
+2. Deposit $5,000 via manual_bank_transfer method
+3. Attempt to place order for $4,800 notional
+4. Receive BLUM-422-001 error
+```
+
+## Self-service resources
+
+Most integration questions are already answered in the documentation. Check these resources before opening a support ticket:
+
+<CardGroup cols={2}>
+  <Card title="Error Codes" icon="triangle-exclamation" href="/resources/error-codes">
+    Complete catalog of every BLUM error code, with causes and recommended actions.
+  </Card>
+
+  <Card title="Postman Collection" icon="paper-plane" href="/resources/postman">
+    124 pre-built requests organized by endpoint — ready to run against the sandbox.
+  </Card>
+
+  <Card title="Glossary" icon="book-open" href="/resources/glossary">
+    Definitions of every platform term, from investor and KYC to cursor pagination and livemode.
+  </Card>
+
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Complete endpoint documentation with request schemas, response shapes, and examples.
+  </Card>
+</CardGroup>
+
+## Requesting production access
+
+When your sandbox testing is complete, email [support@buildmarkets.com](mailto:support@buildmarkets.com) with the following:
+
+1. Your company name and Partner Dashboard account email
+2. Your integration model — Self-Directed or Wealth Management
+3. Confirmation that end-to-end sandbox testing is complete, including:
+   - Investor creation and KYC approval flow
+   - Funding via at least one deposit method
+   - Order placement and fill handling
+   - Webhook delivery and signature verification
+   - Error handling for common `4xx` responses
+
+<Note>
+  Review the Going Live guide for the full production readiness checklist — including webhook verification, error handling, rate limit strategy, and compliance disclosure requirements — before you request production credentials.
+</Note>

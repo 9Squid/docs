@@ -1,0 +1,185 @@
+---
+title: "Manage Brokerage Accounts with the Investors API"
+sidebarTitle: "Accounts"
+description: "Create and manage end-user brokerage accounts (investors) — including identity data, investment profiles, balances, and account lifecycle states."
+---
+
+Every end-user brokerage account in Buildmarkets is represented as an **investor** resource. When you create an investor, you submit identity, contact, suitability, and disclosure data on your user's behalf. Buildmarkets handles KYC verification, agreement tracking, account status management, and custody. All trading, funding, and position activity is organized beneath the investor at `/v1/investors/{investor_id}/...`.
+
+## Create an investor
+
+Submit a `POST /v1/investors` request with identity and contact details, regulatory disclosures, signed agreements, and an investment profile. The request body is flat — regulatory fields live at the top level, with only `address`, `signed_agreements`, and `trusted_contact` nested.
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "account_type": "individual",
+    "management_type": "self_directed",
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "date_of_birth": "1990-05-15",
+    "email": "jane.doe@example.com",
+    "phone": "+14155551234",
+    "address": {
+      "street": ["456 Oak Avenue"],
+      "city": "San Francisco",
+      "state": "CA",
+      "postal_code": "94102",
+      "country": "US"
+    },
+    "tax_id": "111-22-0001",
+    "tax_id_type": "SSN",
+    "country_of_tax_residence": "US",
+    "country_of_citizenship": "US",
+    "country_of_birth": "US",
+    "funding_source": ["employment_income"],
+    "annual_income": { "min": "75000", "max": "99999" },
+    "liquid_net_worth": { "min": "20000", "max": "49999" },
+    "is_control_person": false,
+    "is_affiliated_exchange_or_finra": false,
+    "is_politically_exposed": false,
+    "immediate_family_exposed": false,
+    "employment_status": "employed",
+    "employer_name": "Acme Inc",
+    "signed_agreements": [
+      {
+        "type": "investor_agreement",
+        "signed_at": "2025-06-01T12:00:00.000Z",
+        "ip_address": "203.0.113.42"
+      }
+    ]
+  }'
+```
+
+A successful request returns `201 Created` with the investor resource in `onboarding` status, along with the active compliance workflow:
+
+```json
+{
+  "id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "object": "investor",
+  "created": 1748390400,
+  "livemode": false,
+  "status": "onboarding",
+  "account_type": "individual",
+  "management_type": "self_directed",
+  "account_number": null,
+  "currency": "USD",
+  "balance": "0.00",
+  "buying_power": "0",
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "email": "jane.doe@example.com",
+  "compliance_checks": [
+    {
+      "workflow_id": "cw_01j9x8m2k7qpzwv3t5r6y8n0cd",
+      "check_type": "identity_verification",
+      "status": "pending"
+    }
+  ]
+}
+```
+
+## Required fields
+
+| Field | Type | Description |
+|---|---|---|
+| `first_name` | string | Legal first name |
+| `last_name` | string | Legal last name |
+| `date_of_birth` | string | `YYYY-MM-DD` format |
+| `email` | string | Primary email address |
+| `phone` | string | E.164 format, e.g. `+14155551234` |
+| `address.street` | string[] | Array of street address lines |
+| `address.city` | string | City |
+| `address.state` | string | 2-letter state code (US) |
+| `address.postal_code` | string | ZIP / postal code |
+| `address.country` | string | ISO 3166-1 alpha-2, e.g. `US` |
+| `tax_id` | string | SSN, EIN, or equivalent national ID |
+| `tax_id_type` | string | `SSN`, `ITIN`, `EIN`, `TIN`, or `OTHER` |
+| `is_control_person` | boolean | FINRA disclosure |
+| `is_affiliated_exchange_or_finra` | boolean | FINRA disclosure |
+| `is_politically_exposed` | boolean | FATF disclosure |
+| `immediate_family_exposed` | boolean | FATF disclosure |
+| `signed_agreements` | array | At minimum, `investor_agreement` with `signed_at` |
+
+## Account lifecycle states
+
+After creation, the investor moves through status transitions driven by KYC and compliance outcomes. Listen for `investor.status_updated` webhooks to react to these changes in real time.
+
+| Status | Meaning |
+|---|---|
+| `onboarding` | Investor created; KYC verification is in progress |
+| `under_review` | Identity submitted; pending manual compliance review |
+| `awaiting_documents` | Additional identity documents required before KYC can complete |
+| `active` | KYC approved; investor is fully open for trading and funding |
+| `suspended` | Account temporarily restricted; contact Buildmarkets support |
+| `declined` | KYC rejected; the account cannot be activated |
+| `closed` | Account closed; no further activity is permitted |
+| `setup_failed` | Account creation failed due to a technical error |
+
+<Note>
+  An investor in `active` status can place orders, fund their account, and view positions. All other statuses block trading and funding operations.
+</Note>
+
+## Retrieve an investor
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+## List investors
+
+Retrieve all investors associated with your partner account. Use `limit` and `offset` for pagination, and the optional `status` query parameter to filter:
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/investors?status=active&limit=25" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+## Update an investor
+
+Use `PATCH /v1/investors/{investor_id}` to update mutable fields such as contact information, disclosures, or employment data. Fields like `date_of_birth` and `tax_id` are immutable after creation.
+
+```bash
+curl -X PATCH https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "new.email@example.com",
+    "address": {
+      "street": ["789 Pine Street"],
+      "city": "Austin",
+      "state": "TX",
+      "postal_code": "78701",
+      "country": "US"
+    }
+  }'
+```
+
+## Close an investor account
+
+Before closing an account, the investor must have zero balances — all positions liquidated and all funds withdrawn. Send a `POST` request to the close endpoint:
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/close \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Returns the updated investor resource with `status: "closed"`.
+
+## Investor endpoints summary
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/v1/investors` | Create a new investor |
+| `GET` | `/v1/investors` | List all investors (paginated) |
+| `GET` | `/v1/investors/{investor_id}` | Retrieve a specific investor |
+| `PATCH` | `/v1/investors/{investor_id}` | Update mutable investor fields |
+| `POST` | `/v1/investors/{investor_id}/close` | Initiate account closure |

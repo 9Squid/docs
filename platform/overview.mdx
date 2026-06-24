@@ -1,0 +1,151 @@
+---
+title: "Buildmarkets Platform: Core Concepts and Data Model"
+sidebarTitle: "Overview"
+description: "Learn the Buildmarkets data model — partners, investors, orders, funding sources, wallets, and webhooks — plus API conventions like pagination and timestamps."
+---
+
+Buildmarkets is a white-label brokerage and wealth management infrastructure API. Before diving into feature-specific guides, take a few minutes to understand the core data model and the conventions the API uses throughout — it will make every subsequent integration step faster and more predictable.
+
+## Core concepts
+
+### Partners
+
+You are the partner. A partner is the company integrating Buildmarkets into a product — a fintech app, a challenger bank, a wealth platform, or any financial institution that wants to offer brokerage accounts to end users. You authenticate every API request with a key pair tied to your partner tenant. Everything created under your keys — investors, orders, funding activity — belongs to your partner account.
+
+### Investors
+
+An **investor** is a single end-user brokerage account. Each investor record holds identity and KYC data (name, date of birth, tax ID), contact information (address, phone, email), regulatory disclosures, signed agreements, and financial state (balances, positions, orders, funding). The investor is the central resource in the Buildmarkets API — almost every other resource is scoped beneath it at `/v1/investors/{investor_id}/...`.
+
+### Orders
+
+An **order** is an instruction to buy or sell a security. Buildmarkets supports equity and ETF orders with `market`, `limit`, `stop`, `stop_limit`, and `trailing_stop` order types. Orders move through a lifecycle of states (`pending` → `filled` / `cancelled` / `failed`) and can be quantity-based (shares) or notional-based (dollar amount).
+
+### Funding sources
+
+A **funding source** links an investor's external bank account to their brokerage account. You connect bank accounts via Plaid Link or by supplying account details manually. Once connected, a funding source can be used to initiate ACH deposits and withdrawals.
+
+### Wallets
+
+A **wallet** holds a currency balance within an investor account. Each investor has one or more wallets — typically a USD wallet. The wallet exposes key balance fields: `balance`, `available_balance`, `buying_power`, `cash_withdrawable`, and `equity`.
+
+### Webhooks
+
+**Webhooks** are HTTP callbacks that Buildmarkets delivers to your server when significant events occur — KYC status changes, orders fill, or deposits settle. Use webhooks instead of polling to stay in sync with state changes in real time.
+
+## Data model hierarchy
+
+```
+Partner
+├── API Keys
+└── Investors[]
+    ├── Compliance / KYC workflows
+    ├── Wallets[]
+    ├── Funding Sources[]
+    ├── Deposits[]
+    ├── Withdrawals[]
+    ├── Orders[]
+    └── Positions[]
+```
+
+<Note>
+  Market data endpoints (quotes, bars, asset search) are partner-level and are
+  not scoped to a specific investor. Webhooks are also configured at the partner
+  level and receive events across all investors.
+</Note>
+
+## API conventions
+
+### Base URLs
+
+| Environment | Base URL |
+|---|---|
+| **Sandbox** | `https://dev-tapp-api.tappengine.com` |
+| **Production** | `https://api.tappengine.com` |
+
+Use the sandbox for all development and QA. No real money is moved and no real orders are routed in the sandbox environment.
+
+### REST and JSON
+
+The Buildmarkets API is a standard REST API. All request and response bodies use JSON. Set the `Content-Type: application/json` header on every request that includes a body.
+
+### Authentication
+
+Every request requires two headers:
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/investors \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+See [Authentication](/platform/authentication) for how to generate and scope keys.
+
+### IDs
+
+All resource IDs are prefixed strings (e.g., `inv_01j9x8m2k7qpzwv3t5r6y8n0ab` for an investor, `ord_…` for an order, `wlt_…` for a wallet). Always store and pass IDs as strings — never treat them as integers.
+
+### Timestamps
+
+All timestamps are **ISO 8601** strings in UTC:
+
+```
+"2025-06-01T14:32:00.000Z"
+```
+
+Use this format when submitting timestamps in request bodies (e.g., `signed_at` on agreements).
+
+### Monetary amounts
+
+All monetary values are **decimal strings**, not floating-point numbers. This prevents precision loss on financial data:
+
+```json
+{ "amount": "1000.00" }
+```
+
+### Pagination
+
+List endpoints return a standard envelope with cursor-based pagination:
+
+```json
+{
+  "object": "list",
+  "url": "/v1/investors",
+  "has_more": true,
+  "data": [...]
+}
+```
+
+Use the `limit` query parameter to control page size (default 50, max 100) and `offset` to paginate through results.
+
+### Idempotency
+
+For `POST` requests that initiate financial operations — orders, deposits, withdrawals — include a `client_order_id` or use the `Idempotency-Key` request header. If you retry a timed-out request, Buildmarkets returns the existing resource rather than creating a duplicate.
+
+## Sandbox testing
+
+The sandbox environment lets you develop and test your integration safely. KYC outcomes are controlled by the SSN suffix you provide when creating an investor:
+
+| SSN suffix | KYC outcome |
+|---|---|
+| `0001` | `approved` (instant) |
+| `0002` | `declined` |
+| `0003` | `awaiting_review` (manual review) |
+
+For example, submitting SSN `111-22-0001` results in an immediately approved investor. Order fills and funding transfers are also simulated — no real money moves.
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/platform/authentication">
+    Generate API keys, understand scopes, and apply security best practices.
+  </Card>
+  <Card title="Accounts" icon="user" href="/platform/accounts">
+    Create and manage investor accounts with the Investors API.
+  </Card>
+  <Card title="KYC" icon="shield-check" href="/platform/compliance-kyc">
+    Submit identity data, track compliance status, and handle outcomes.
+  </Card>
+  <Card title="Trading" icon="chart-line" href="/platform/trading">
+    Place and manage equity and ETF orders.
+  </Card>
+</CardGroup>

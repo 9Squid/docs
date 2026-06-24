@@ -1,0 +1,395 @@
+---
+title: "Receive Real-Time Events with Buildmarkets Webhooks"
+sidebarTitle: "Webhooks"
+description: "Subscribe to Buildmarkets webhook events for orders, accounts, and funding. Configure endpoints, verify signatures, and handle retries."
+---
+
+Webhooks let your application react to events the moment they happen inside Buildmarkets — rather than polling the API in a loop and hoping to catch state changes in time. When an order fills, a KYC check resolves, or a deposit settles, Buildmarkets sends an HTTP POST to your registered HTTPS endpoint with a signed JSON payload describing exactly what occurred. You register one or more endpoints, subscribe to the event types you care about, and Buildmarkets handles the rest.
+
+---
+
+## How webhooks work
+
+<Steps>
+  <Step title="Register an endpoint">
+    Call `POST /v1/webhooks` with your HTTPS URL and the event types you want to receive. Buildmarkets returns a one-time signing secret — store it immediately in a secrets manager, because it is never shown again.
+  </Step>
+  <Step title="Receive payloads">
+    When a subscribed event fires, Buildmarkets sends an HTTP POST to your URL with a JSON body describing the event and a signature header you can use to verify authenticity.
+  </Step>
+  <Step title="Acknowledge receipt">
+    Respond with any `2xx` status code within **5 seconds**. Buildmarkets records the delivery as successful and moves on.
+  </Step>
+  <Step title="Handle retries">
+    If your endpoint returns a non-`2xx` response or times out, Buildmarkets retries the delivery with exponential backoff. Design your handler to be idempotent — the same event may arrive more than once.
+  </Step>
+</Steps>
+
+<Note>
+  Your endpoint must respond with a `2xx` status within **5 seconds** of receiving a delivery. If your handler needs to do heavier processing, acknowledge the request immediately and enqueue the payload for asynchronous processing.
+</Note>
+
+---
+
+## Authentication
+
+All Buildmarkets API requests — including webhook management — require your API credentials in every request header.
+
+```bash
+X-API-Key: <your-api-key>
+X-API-Secret: <your-api-secret>
+```
+
+---
+
+## Register a webhook
+
+Call `POST /v1/webhooks` to create a new subscription. Supply at least one event type name from the list below. Buildmarkets returns a `201 Created` response that includes a `secret` field — this is your HMAC signing secret and is **shown exactly once**.
+
+### Endpoint
+
+```
+POST /v1/webhooks
+```
+
+### Request body
+
+<ParamField body="name" type="string" required>
+  A human-readable label for this webhook, such as `"Production order events"`.
+</ParamField>
+
+<ParamField body="url" type="string" required>
+  The HTTPS URL where Buildmarkets will POST event payloads. Must begin with `https://`.
+</ParamField>
+
+<ParamField body="eventTypeNames" type="array of strings" required>
+  The event type names to subscribe to. Pass at least one value. Retrieve the full list of valid names from `GET /v1/webhooks/event-types`.
+</ParamField>
+
+<ParamField body="description" type="string">
+  An optional free-text description for your own reference.
+</ParamField>
+
+### Response fields
+
+<ResponseField name="id" type="string">
+  Unique webhook identifier (e.g. `wh_01j9x8m2k7qpzwv3t5r6y8n0ab`).
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  The human-readable label you provided.
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The registered HTTPS endpoint URL.
+</ResponseField>
+
+<ResponseField name="event_types" type="array">
+  The subscribed event type objects, each with `id`, `name`, `category`, and `description`.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Delivery status — `ACTIVE` or `INACTIVE`.
+</ResponseField>
+
+<ResponseField name="secret" type="string">
+  **Returned once only.** Your HMAC-SHA256 signing secret. Store this in a secrets manager immediately.
+</ResponseField>
+
+<ResponseField name="created" type="integer">
+  Unix timestamp (seconds) of when the webhook was registered.
+</ResponseField>
+
+### Example: register a webhook
+
+<Tabs>
+  <Tab title="Sandbox">
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/webhooks \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "Production order events",
+        "url": "https://myapp.com/webhooks/buildmarkets",
+        "description": "Order lifecycle and funding events for our brokerage integration",
+        "eventTypeNames": [
+          "order.filled",
+          "order.failed",
+          "kyc.verification.approved",
+          "kyc.verification.rejected",
+          "transfer.deposit.completed",
+          "transfer.deposit.failed",
+          "transfer.withdrawal.completed"
+        ]
+      }'
+    ```
+  </Tab>
+  <Tab title="Production">
+    ```bash
+    curl -X POST https://api.tappengine.com/v1/webhooks \
+      -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+      -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "Production order events",
+        "url": "https://myapp.com/webhooks/buildmarkets",
+        "description": "Order lifecycle and funding events for our brokerage integration",
+        "eventTypeNames": [
+          "order.filled",
+          "order.failed",
+          "kyc.verification.approved",
+          "kyc.verification.rejected",
+          "transfer.deposit.completed",
+          "transfer.deposit.failed",
+          "transfer.withdrawal.completed"
+        ]
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+### Example response
+
+```json
+{
+  "status": "success",
+  "data": {
+    "webhook": {
+      "id": "wh_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "object": "webhook",
+      "created": 1747776000,
+      "livemode": true,
+      "name": "Production order events",
+      "url": "https://myapp.com/webhooks/buildmarkets",
+      "description": "Order lifecycle and funding events for our brokerage integration",
+      "status": "ACTIVE",
+      "secret": "whsec_xK9mP2qR7tNvL4jW8cB5yZ3hF6dE1sA0",
+      "event_types": [
+        { "id": "evt_01abc", "name": "order.filled", "category": "order", "description": "Order fully filled" },
+        { "id": "evt_02abc", "name": "transfer.deposit.completed", "category": "transfer", "description": "Deposit completed, wallet credited" }
+      ],
+      "updated_at": "2025-05-21T10:00:00Z"
+    }
+  }
+}
+```
+
+<Warning>
+  The `secret` field is returned **only in the `201` creation response**. It is never included in subsequent GET or PATCH responses. If you lose it, delete the webhook and create a new one.
+</Warning>
+
+---
+
+## Event types
+
+Retrieve the live list of all subscribable event types from the API:
+
+```bash
+curl https://api.tappengine.com/v1/webhooks/event-types \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+  -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
+```
+
+### Order events
+
+| Event name | Description |
+|---|---|
+| `order.created` | A new trading order was submitted |
+| `order.filled` | The order was fully executed at the exchange |
+| `order.failed` | Order execution failed (e.g. insufficient funds, invalid symbol) |
+
+### Account and KYC events
+
+| Event name | Description |
+|---|---|
+| `account.created` | A new investor account was created |
+| `account.updated` | An investor account's details were updated |
+| `kyc.submission.created` | A KYC submission was received and is under review |
+| `kyc.verification.approved` | KYC verification passed — the investor is cleared to trade |
+| `kyc.verification.rejected` | KYC verification failed — the investor cannot trade until resolved |
+
+### Funding events
+
+| Event name | Description |
+|---|---|
+| `transfer.deposit.initiated` | A deposit was initiated and is awaiting processing |
+| `transfer.deposit.processing` | The deposit is being processed by the provider |
+| `transfer.deposit.received` | Funds have been received (manual transfers) |
+| `transfer.deposit.completed` | Deposit settled — the investor's wallet has been credited |
+| `transfer.deposit.expired` | A pending deposit expired without completing |
+| `transfer.deposit.canceled` | The deposit was cancelled |
+| `transfer.deposit.failed` | The deposit failed to process |
+| `transfer.withdrawal.initiated` | A withdrawal was initiated |
+| `transfer.withdrawal.processing` | The withdrawal is being processed |
+| `transfer.withdrawal.submitted` | The withdrawal has been submitted to the provider |
+| `transfer.withdrawal.completed` | Withdrawal completed — funds have been sent |
+| `transfer.withdrawal.canceled` | The withdrawal was cancelled |
+| `transfer.withdrawal.failed` | The withdrawal failed to process |
+
+---
+
+## Webhook payload structure
+
+Every event Buildmarkets delivers follows the same envelope structure. The `event_type` field tells you what happened; the `data` field carries the affected resource.
+
+### Example: `order.filled` payload
+
+```json
+{
+  "id": "evt_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "object": "event",
+  "created": 1747776123,
+  "livemode": true,
+  "event_type": "order.filled",
+  "data": {
+    "id": "ord_01j9x8m2k7qpzwv3t5r6y8n0cd",
+    "object": "order",
+    "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+    "symbol": "AAPL",
+    "class": "equity",
+    "side": "buy",
+    "type": "market",
+    "quantity": "10",
+    "filled_quantity": "10",
+    "average_price": "192.45",
+    "status": "filled",
+    "filled_at": "2025-05-21T14:32:01Z",
+    "client_order_id": "my-app-order-uuid-v4",
+    "created": 1747776000
+  }
+}
+```
+
+### Example: `kyc.verification.approved` payload
+
+```json
+{
+  "id": "evt_01j9x8m2k7qpzwv3t5r6y8n0ef",
+  "object": "event",
+  "created": 1747776500,
+  "livemode": true,
+  "event_type": "kyc.verification.approved",
+  "data": {
+    "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+    "status": "approved",
+    "approved_at": "2025-05-21T14:38:20Z"
+  }
+}
+```
+
+### Example: `transfer.deposit.completed` payload
+
+```json
+{
+  "id": "evt_01j9x8m2k7qpzwv3t5r6y8n0gh",
+  "object": "event",
+  "created": 1747777000,
+  "livemode": true,
+  "event_type": "transfer.deposit.completed",
+  "data": {
+    "id": "dep_01j9x8m2k7qpzwv3t5r6y8n0ij",
+    "object": "deposit",
+    "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+    "amount": "500.00",
+    "currency": "USD",
+    "status": "completed",
+    "completed_at": "2025-05-21T15:01:00Z"
+  }
+}
+```
+
+---
+
+## Handling retries
+
+When your endpoint returns a non-`2xx` status code or fails to respond within 5 seconds, Buildmarkets marks the delivery as failed and schedules a retry using exponential backoff. Because the same event may be delivered more than once — either due to retries or rare network conditions — your handler must be **idempotent**.
+
+<Tip>
+  Use the `id` field on each event payload as a deduplication key. Before processing, check whether you have already handled an event with that ID. If you have, return `200` immediately without reprocessing.
+</Tip>
+
+Best practices for reliable webhook handling:
+
+- **Acknowledge first, process second.** Return `200` as soon as you receive and validate the payload, then enqueue the event for background processing.
+- **Use the event `id` for deduplication.** Store processed event IDs in your database with a unique constraint.
+- **Avoid side effects on `livemode: false` events.** Sandbox events have `livemode: false` — gate any production actions on this field.
+- **Use `client_order_id` for order events.** When you receive an `order.filled` event, reconcile it against your own records using the `client_order_id` you set at order creation. See [Idempotency](/platform/idempotency) for details.
+
+---
+
+## Update a webhook
+
+Change the URL, event subscriptions, or delivery status of an existing webhook. Include only the fields you want to update.
+
+```bash
+curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+  -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://myapp.com/webhooks/buildmarkets-v2",
+    "eventTypeNames": [
+      "order.filled",
+      "order.failed",
+      "transfer.deposit.completed",
+      "transfer.withdrawal.completed",
+      "kyc.verification.approved",
+      "kyc.verification.rejected"
+    ]
+  }'
+```
+
+To pause delivery without deleting the webhook, set `status` to `INACTIVE`:
+
+```bash
+curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+  -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{ "status": "INACTIVE" }'
+```
+
+---
+
+## Delete a webhook
+
+Permanently removes the webhook. Delivery to the registered URL stops immediately. This action cannot be undone — you will need to create a new webhook with a new signing secret if you want to resume delivery.
+
+Returns `204 No Content` on success.
+
+```bash
+curl -X DELETE https://api.tappengine.com/v1/webhooks/wh_01j9x8m2k7qpzwv3t5r6y8n0ab \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+  -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
+```
+
+---
+
+## List all webhooks
+
+Retrieve all webhooks registered for your tenant. The `secret` field is **not** included in list responses.
+
+```bash
+curl https://api.tappengine.com/v1/webhooks \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
+  -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
+```
+
+---
+
+## Common errors
+
+| HTTP Status | Error code | Cause |
+|---|---|---|
+| `400` | `BLUM-400-002` | Request body is missing a required field or contains an invalid value |
+| `400` | `BLUM-400-003` | One or more `eventTypeNames` values are not recognized event type names |
+| `401` | `BLUM-401-001` | Missing or invalid `X-API-Key` / `X-API-Secret` headers |
+| `404` | `BLUM-404-001` | No webhook found for the provided `webhook_id` |
+
+---
+
+## Next steps
+
+- [Idempotency →](/platform/idempotency) — Use `client_order_id` to safely reconcile order events with your records
+- [Errors →](/platform/errors) — Understand the error envelope format and retry strategy

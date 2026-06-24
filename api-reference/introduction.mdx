@@ -1,0 +1,212 @@
+---
+title: "Buildmarkets REST API Reference"
+sidebarTitle: "Introduction"
+description: "Full reference for every Buildmarkets API endpoint — authentication, request format, response envelope, pagination, error codes, and rate limits."
+---
+
+The Buildmarkets API is a REST API that accepts JSON request bodies and returns JSON responses. This page covers the conventions that apply across every endpoint — base URLs, authentication, the standard response envelope, pagination, error handling, and data formatting rules. Read this page before diving into individual endpoint reference pages so you understand what to expect from every request and response.
+
+## Base URLs
+
+Direct all requests to the appropriate base URL for your environment. Use the sandbox URL during development and integration testing — sandbox requests create simulated data only and never trigger real trades, money movements, or regulated filings.
+
+| Environment | Base URL |
+|---|---|
+| **Sandbox** | `https://dev-tapp-api.tappengine.com/v1` |
+| **Production** | `https://api.tappengine.com/v1` |
+
+<Note>
+  Always develop and test against the sandbox URL. No real trades, deposits, withdrawals, or KYC submissions occur in sandbox mode — `livemode` is `false` on all sandbox responses.
+</Note>
+
+## Authentication
+
+Every request requires two headers identifying your API credentials. Pass your **API Key** as `X-API-Key` and your **API Secret** as `X-API-Secret`.
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/investors \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+Requests with missing or invalid credentials return a `401` response. See the [Authentication guide](/platform/authentication) for credential management, key rotation, and security best practices.
+
+## Response envelope
+
+Every resource response wraps the domain-specific fields in a standard envelope. The envelope keys appear first, followed by the fields specific to that resource type.
+
+```json
+{
+  "id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "object": "investor",
+  "created": 1747776000,
+  "livemode": false,
+  "metadata": {},
+  "status": "active",
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "email": "jane.doe@example.com"
+}
+```
+
+<ResponseField name="id" type="string">
+  Prefixed public identifier for the resource (e.g. `inv_…`, `ord_…`, `dep_…`). Use this to reference the resource in subsequent requests.
+</ResponseField>
+
+<ResponseField name="object" type="string">
+  Resource type discriminator (e.g. `"investor"`, `"order"`, `"deposit"`). Use this field to branch logic when handling mixed-type responses.
+</ResponseField>
+
+<ResponseField name="created" type="integer">
+  Unix timestamp (seconds) of when the resource was created.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean">
+  `false` for sandbox resources, `true` for live production resources.
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Partner-defined key/value map for cross-referencing with your own systems. All values must be strings.
+</ResponseField>
+
+## List response envelope
+
+Endpoints that return collections wrap the paginated results in a list envelope.
+
+```json
+{
+  "object": "list",
+  "url": "/v1/investors",
+  "has_more": false,
+  "data": [
+    {
+      "id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "object": "investor",
+      "created": 1747776000,
+      "livemode": false,
+      "metadata": {},
+      "status": "active",
+      "first_name": "Jane",
+      "last_name": "Doe"
+    }
+  ]
+}
+```
+
+<ResponseField name="object" type="string">
+  Always `"list"` for collection responses.
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The endpoint path that produced this list.
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  `true` when there are additional results beyond the current page. Use the cursor from the last item in `data` to fetch the next page.
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of resource objects for the current page. Each item is a full resource envelope.
+</ResponseField>
+
+## Pagination
+
+The Buildmarkets API uses cursor-based pagination. When a list response returns `has_more: true`, pass the identifier of the last item in the current `data` array as the `starting_after` cursor parameter in your next request.
+
+```bash
+# First page
+curl https://dev-tapp-api.tappengine.com/v1/investors \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -G \
+  --data-urlencode "limit=20"
+
+# Next page — pass the last id from the previous response
+curl https://dev-tapp-api.tappengine.com/v1/investors \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -G \
+  --data-urlencode "limit=20" \
+  --data-urlencode "starting_after=inv_01j9x8m2k7qpzwv3t5r6y8n0ab"
+```
+
+Continue fetching until `has_more` is `false`. Some endpoints use `offset`-based pagination instead — refer to individual endpoint pages for the specific parameters supported.
+
+## Error envelope
+
+All error responses follow a consistent envelope shape. Branch your error-handling logic on `error.type` for broad categories, and use `error.code` for specific resolution guidance.
+
+```json
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "BLUM-400-001",
+    "message": "Required field 'tax_id' is missing.",
+    "param": "tax_id"
+  }
+}
+```
+
+<ResponseField name="error.type" type="string">
+  Broad error category. One of: `invalid_request_error`, `authentication_error`, `permission_error`, `not_found_error`, `conflict_error`, `idempotency_error`, `rate_limit_error`, `api_error`.
+</ResponseField>
+
+<ResponseField name="error.code" type="string">
+  Buildmarkets-specific error code in the format `BLUM-{STATUS}-{SEQ}` (e.g. `BLUM-400-001`). Use this for precise error identification and support escalation.
+</ResponseField>
+
+<ResponseField name="error.message" type="string">
+  Developer-facing description of the error. Do not display this directly to end users.
+</ResponseField>
+
+<ResponseField name="error.param" type="string">
+  The request field that caused the error, when applicable (e.g. `"tax_id"`, `"amount"`).
+</ResponseField>
+
+## Data conventions
+
+These formatting rules apply to every field across the entire API.
+
+**Timestamps** — All timestamps use ISO 8601 format in UTC:
+```json
+{ "created_at": "2025-06-15T14:30:00Z" }
+```
+
+**Monetary amounts** — All monetary values are decimal strings, not floats. This preserves precision and avoids floating-point rounding errors:
+```json
+{ "amount": "178.50", "balance": "10000.00" }
+```
+
+**IDs** — Resource identifiers use a prefixed format (e.g. `inv_`, `ord_`, `dep_`, `doc_`) followed by a base32-encoded value. Path parameters always accept the full prefixed string.
+
+**Field naming** — All field names use `snake_case`. There are no camelCase fields in request bodies or responses.
+
+**Null fields** — Optional fields that have no value are returned as `null` rather than being omitted.
+
+## Rate limits
+
+| Environment | Limit |
+|---|---|
+| Sandbox | 10 requests/second |
+| Production | 25 requests/second |
+
+Requests that exceed the rate limit return HTTP `429`. The response includes a `Retry-After` header indicating how many seconds to wait before retrying. Implement exponential backoff in your integration to handle bursts gracefully.
+
+## API versioning
+
+All endpoints are prefixed with `/v1/`. The current version of the API is `v1`. Breaking changes are introduced in new API versions, not within an existing version. You will receive advance notice before any version is deprecated.
+
+<Tip>
+  Use the sandbox environment to explore unfamiliar endpoints risk-free. All sandbox responses have `livemode: false` so you can safely test any operation without affecting real investor accounts or triggering regulated filings.
+</Tip>
+
+## Additional resources
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/platform/authentication">
+    Credential management, key rotation, and security best practices for API authentication.
+  </Card>
+  <Card title="Error Code Reference" icon="triangle-exclamation" href="/resources/error-codes">
+    Complete catalog of `BLUM-` error codes with descriptions and resolution guidance.
+  </Card>
+</CardGroup>

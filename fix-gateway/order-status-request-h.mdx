@@ -1,0 +1,47 @@
+---
+title: "Order Status Request (MsgType=H): Query Order State"
+sidebarTitle: "Order Status"
+description: "Query the current state of an order via the FIX gateway using Order Status Request (MsgType=H). Gateway responds with an Execution Report."
+---
+
+The Order Status Request message (`MsgType=H`) lets you query the current state of any order at any point during the trading session. The gateway responds with an Execution Report (`MsgType=8`) where `ExecType=I` (Order Status), reflecting the order's present state including fill quantity, remaining quantity, and order status. This is useful for reconciling your OMS state after a disconnect or verifying that a cancel request was processed.
+
+## Field Reference
+
+| Tag | Field | Required | Type | Description | Valid Values |
+|---|---|---|---|---|---|
+| 1 | Account | Y | String | Trading account identifier | Your assigned account number |
+| 11 | ClOrdID | Y | String | Unique ID for this status request | Any unique string per session |
+| 37 | OrderID | Y | String | Gateway-assigned order ID to query | From the original Execution Report (Tag 37) |
+| 48 | SecurityID | N | Numeric | Venue-specific security identifier | Numeric ID if known |
+| 54 | Side | Y | Char | Side of the order being queried | `1`=Buy, `2`=Sell |
+| 55 | Symbol | Y | String | Ticker symbol of the order (uppercase) | e.g. `AAPL`, `SPY` |
+| 167 | SecurityType | Y | String | Security classification | `CS`=Common Stock, `OPT`=Option, `MLEG`=Multileg |
+
+## Example
+
+```fix
+8=FIX.4.4|35=H|49=CLIENT1|56=BUILDMARKETS|34=30|52=20260212-15:10:00.000|
+11=STAT-20260212-001|1=ACC123456789|37=BMKT-78450|55=AAPL|167=CS|54=1|10=012|
+```
+
+## Gateway Response
+
+The gateway responds with an Execution Report (`MsgType=8`) containing:
+
+| Tag | Field | Description |
+|---|---|---|
+| 17 | ExecID | Unique execution identifier for this status report |
+| 39 | OrdStatus | Current state of the order (e.g. `0`=New, `1`=Partially Filled, `2`=Filled, `4`=Cancelled) |
+| 14 | CumQty | Total quantity filled so far |
+| 151 | LeavesQty | Remaining quantity open |
+| 6 | AvgPx | Average fill price across all fills |
+| 150 | ExecType | Will be `I` (Order Status) for status responses |
+
+<Note>
+The `ExecType=I` value in the response Execution Report distinguishes a status query response from an unsolicited order update. Your OMS should handle this value without treating it as a new fill event.
+</Note>
+
+<Tip>
+After reconnecting from a disconnect, send Order Status Requests for any orders that were open at the time of the disconnect before submitting new orders. This ensures your local state is consistent with the gateway before resuming trading activity.
+</Tip>

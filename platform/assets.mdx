@@ -1,0 +1,163 @@
+---
+title: "Search and Retrieve Tradable Asset Information"
+sidebarTitle: "Assets"
+description: "Search the Buildmarkets asset catalog by symbol or name, retrieve asset details, and access real-time quotes, historical bars, and market data for equities and ETFs."
+---
+
+Before placing an order or building a search experience, you need information about tradable assets — what's available, whether it's fractionable, and its current price. Buildmarkets provides asset search and lookup endpoints alongside a full market data suite covering real-time quotes, historical price bars, company profiles, and more. All market data comes included with your Buildmarkets integration — no separate subscription required.
+
+## Search for assets
+
+Use the search endpoint to find assets by ticker symbol or company name. This is the right starting point for building a security search bar in your app.
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/assets/search?q=Apple&class=equity&country=us" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+**Example response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "b0b6dd9d-8b9b-48b9-bbb8-bbbb49bb1bbb",
+      "class": "equity",
+      "country": "us",
+      "market": "XNAS",
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "status": "active",
+      "tradable": true,
+      "fractionable": true,
+      "marginable": true,
+      "currency": "USD"
+    }
+  ],
+  "count": 1
+}
+```
+
+### Search parameters
+
+| Parameter | Description |
+|---|---|
+| `q` | Search query — ticker symbol, company name, or partial match |
+| `class` | Asset class: `equity`, `etf`, `bond`, `mutual_fund`, `cryptocurrency`, etc. |
+| `country` | ISO 3166-1 alpha-2 country code in lowercase, e.g. `us`, `ng` |
+| `status` | `active` (default) or `inactive` |
+| `limit` | Results to return (default 50, max 100) |
+
+## Get a single asset by symbol
+
+Look up full details for a specific ticker, including current price data:
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/assets/AAPL?market=XNAS" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+**Example response:**
+
+```json
+{
+  "data": {
+    "id": "b0b6dd9d-8b9b-48b9-bbb8-bbbb49bb1bbb",
+    "class": "equity",
+    "country": "us",
+    "market": "XNAS",
+    "symbol": "AAPL",
+    "name": "Apple Inc.",
+    "status": "active",
+    "tradable": true,
+    "fractionable": true,
+    "marginable": true,
+    "currency": "USD",
+    "price": 178.50,
+    "change": 1.50,
+    "changePercent": 0.85,
+    "previousClose": 177.00,
+    "bidPrice": 178.48,
+    "askPrice": 178.52
+  }
+}
+```
+
+Providing the optional `market` hint (e.g., `XNAS`, `XNYS`, `BATS`) makes the lookup faster by targeting a specific provider. Without it, all available providers are searched.
+
+## Asset fields
+
+| Field | Description |
+|---|---|
+| `symbol` | Ticker symbol, e.g. `AAPL` |
+| `name` | Full company or fund name |
+| `class` | Canonical instrument class: `equity`, `etf`, `bond`, etc. |
+| `country` | ISO 3166-1 alpha-2 country code (lowercase), e.g. `us` |
+| `market` | Exchange MIC code: `XNAS`, `XNYS`, `BATS`, `ARCA`, `XNSA` |
+| `status` | `active` — available for trading; `inactive` — not currently tradable |
+| `tradable` | `true` if the asset can be submitted in an order right now |
+| `fractionable` | `true` if notional (dollar-based) orders are supported |
+| `marginable` | `true` if the asset is eligible for margin |
+| `currency` | Settlement currency, typically `USD` |
+
+## Real-time quotes
+
+Fetch a live bid, ask, and last-traded price for any active asset:
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/market-data/assets/AAPL/quote" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+<Tip>
+  For high-frequency display scenarios — like a live ticker — implement client-side caching with a short TTL (1–2 seconds). Avoid polling the same symbol more than once per second in production.
+</Tip>
+
+## Historical price bars
+
+Retrieve OHLCV (open, high, low, close, volume) bar data for chart displays:
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/assets/chart?symbol=AAPL&period=1Y" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+## Asset snapshot
+
+Get a combined snapshot of current price, daily change, and key metrics for one or more symbols — optimized for populating watchlists and portfolio rows:
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/market-data/assets/AAPL/snapshot" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+## Asset and market data endpoints summary
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/v1/assets/search` | Search for assets by symbol or name |
+| `GET` | `/v1/assets` | List all assets with optional filtering |
+| `GET` | `/v1/assets/{symbol}` | Get a single asset with current price data |
+| `GET` | `/v1/assets/chart` | Historical OHLCV bar data |
+| `GET` | `/v1/market-data/assets/{symbol}/quote` | Live bid/ask/last price |
+| `GET` | `/v1/market-data/assets/{symbol}/bars` | Historical price bars |
+| `GET` | `/v1/market-data/assets/{symbol}/snapshot` | Combined snapshot for display |
+| `GET` | `/v1/market-data/markets` | List supported market venues |
+| `GET` | `/v1/market-data/markets/{code}/status` | Market open/closed status |
+| `GET` | `/v1/market-data/markets/{code}/calendar` | Market trading calendar |
+
+## Supported markets
+
+| MIC code | Exchange |
+|---|---|
+| `XNAS` | NASDAQ |
+| `XNYS` | New York Stock Exchange |
+| `BATS` | Cboe BZX Exchange |
+| `ARCA` | NYSE Arca |
+| `OTC` | OTC Markets |
+| `XNSA` | Nigerian Stock Exchange |

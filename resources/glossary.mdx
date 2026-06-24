@@ -1,0 +1,182 @@
+---
+title: "Buildmarkets Glossary: Platform Terms and Concepts"
+sidebarTitle: "Glossary"
+description: "Definitions of key terms used in the Buildmarkets platform — covering API concepts, financial terminology, and brokerage-specific vocabulary."
+---
+
+This glossary defines the core concepts, data model terms, and conventions used throughout the Buildmarkets API and documentation. Familiarizing yourself with these terms before diving into feature-specific guides will help you build faster and avoid common integration mistakes.
+
+Terms are grouped by domain. If you are looking for a specific term, use your browser's in-page search (Cmd+F / Ctrl+F).
+
+---
+
+## Platform terms
+
+**Partner**
+You — the company integrating Buildmarkets into a product. Partners authenticate using API key pairs (`X-API-Key` / `X-API-Secret`) scoped to their tenant. All resources created through your API keys are isolated to your partner account and invisible to other partners.
+
+**Investor**
+The primary resource in the Buildmarkets API. An investor represents one end-user brokerage account, identified by an `investor_id` prefixed `inv_…`. Investors hold identity data (KYC), signed agreements, a wallet, positions, orders, and funding activity. Almost every other resource is scoped under `/v1/investors/{investor_id}/…`.
+
+**Investor ID**
+The unique identifier for an investor resource. Format: `inv_01j9x8m2k7qpzwv3t5r6y8n0ab`. Always a prefixed string — treat it as opaque. Do not parse, sort numerically, or derive meaning from the suffix.
+
+**API Key**
+A credential issued to a partner for authenticating API requests. The API key is the username in HTTP Basic Authentication. It is safe to log and include in support requests.
+
+**API Secret**
+The password paired with an API key in HTTP Basic Authentication. The API secret is sensitive — never log it, never include it in client-side code, and never include it in support tickets. If exposed, rotate it immediately in the Partner Dashboard.
+
+**Scope**
+A permission set attached to an API key that controls which endpoints it can call. An API key without the trading scope, for example, cannot place orders. Contact Buildmarkets to request additional scopes.
+
+**Sandbox**
+The test environment for your integration. Sandbox API base URL: `https://dev-tapp-api.tappengine.com/v1`. All operations in sandbox are fully simulated — no real money moves, no real trades execute, and KYC outcomes are controlled by the SSN suffix you provide. Resources created in sandbox are never visible in production.
+
+**Production (Livemode)**
+The live environment where real brokerage accounts are created, real trades execute, and real money moves. Production API base URL: `https://api.tappengine.com/v1`. Every resource has a `livemode` boolean field — `false` in sandbox, `true` in production.
+
+**Idempotency Key**
+A partner-supplied unique string sent as the `Idempotency-Key` request header on `POST` requests that initiate financial operations (orders, deposits, withdrawals). If you send the same idempotency key twice, the second call returns the result of the first without creating a duplicate. Use a UUID or a stable client-generated ID as the key. The `client_order_id` field on orders serves the same purpose for the trading domain.
+
+---
+
+## Account and compliance terms
+
+**KYC (Know Your Customer)**
+The identity verification process required before an investor can trade or move funds. Buildmarkets runs KYC automatically when you create an investor. KYC checks include identity verification (name, DOB, SSN/TIN) and AML screening.
+
+**AML (Anti-Money Laundering)**
+The screening process that checks investors against sanctions lists, politically exposed persons (PEP) databases, and adverse media. Part of the KYC compliance workflow.
+
+**Compliance Status**
+The current state of an investor's KYC workflow. Possible values: `running`, `awaiting_review`, `approved`, `declined`, `suspended`, `expired`. An investor must reach `approved` before placing orders or initiating deposits.
+
+**Compliance Workflow**
+A container resource that tracks the status of all individual compliance checks (identity verification, screening, risk assessment) for an investor. Returned from `GET /v1/investors/{investor_id}/compliance`.
+
+**Disclosures**
+Regulated text documents (FINRA, SEC, Alpaca) that must be presented to investors before they can use the platform. Disclosures are versioned — when a version advances, you must re-prompt the investor. Fetched from `GET /v1/disclosures`.
+
+**Agreements (Signed Agreements)**
+An audit trail of the agreements the investor has accepted, including the timestamp and IP address of each click. Required fields at investor creation: `investor_agreement` and `margin_disclosure_acknowledged`. Non-US tax residents also require `w8ben_certification`.
+
+**Investment Profile**
+A collection of suitability data for a Wealth Management investor — including demographics, employment, tax situation, insurance, estate planning, cash flow, and investment preferences. Used as input to the AI wealth engine for generating IPS and financial plans.
+
+**Suitability**
+The regulatory requirement that investment recommendations be appropriate for a specific investor based on their financial situation, risk tolerance, and investment objectives. The Buildmarkets Wealth API collects suitability data through the risk assessment and investor profile endpoints.
+
+---
+
+## Trading terms
+
+**Order**
+An instruction to buy or sell a security on behalf of an investor. Created via `POST /v1/investors/{investor_id}/orders`. Each order has a lifecycle of statuses and generates executions (fills) once matched by the exchange.
+
+**Order Type**
+The mechanism controlling how and when an order executes:
+- **Market** — Executes immediately at the best available price
+- **Limit** — Executes only at the specified price or better
+- **Stop** — Becomes a market order when the asset reaches the stop price
+- **Stop-Limit** — Becomes a limit order when the asset reaches the stop price
+- **Trailing Stop** — A stop order where the stop price trails the market price by a fixed percentage or amount
+
+**Side**
+Whether the order is a `buy` (acquiring shares) or `sell` (disposing of shares).
+
+**Quantity**
+The number of shares to trade. Represented as a decimal string (e.g., `"10"` or `"0.5"` for fractional shares). For bonds, `quantity` carries the face value in dollars.
+
+**Notional**
+A dollar amount to trade instead of a share quantity. Used for fractional buy orders (e.g., `"notional": "500.00"` buys $500 of a security at the current market price). Not available for sell orders.
+
+**Fractional Share**
+A partial share of a security. When an asset has `fractionable: true`, you can place notional buy orders that result in fractional share positions (e.g., 0.27 shares of AAPL).
+
+**Execution (Fill)**
+A record of an order being matched and executed at the exchange. A fully filled order has `status: filled`, `filled_quantity` equal to the original quantity, and a non-null `filled_at` timestamp.
+
+**Order Status**
+The lifecycle state of an order. Buildmarkets-native values: `pending`, `filled`, `partial`, `cancelled`, `failed`. Note: Buildmarkets uses its own status vocabulary, not Alpaca's.
+
+**Time in Force**
+How long the order remains active: `day` (expires at market close), `gtc` (Good Till Cancelled), `opg` (at market open), `cls` (at market close), `ioc` (Immediate or Cancel), `fok` (Fill or Kill).
+
+**Asset Class**
+The category of a financial instrument. Canonical values: `equity`, `etf`, `bond`, `bill`, `note`, `mutual_fund`, `derivative`, `cryptocurrency`, `commodity`, `real_estate`, `cash`. Combine with `country` for full classification (e.g., `class: equity, country: us` = US stock).
+
+**client_order_id**
+A partner-supplied idempotency key for orders. If you set this and the order request is retried, the second call returns the original order rather than creating a duplicate. Use a stable, unique string (e.g., your internal order reference).
+
+---
+
+## Funding terms
+
+**ACH (Automated Clearing House)**
+The US electronic funds transfer network used for moving money between bank accounts. ACH deposits and withdrawals are the primary funding method for US investors. Typical settlement time: 1–5 business days.
+
+**Funding Source**
+A connected bank account that can be used to fund an investor's brokerage account (deposits) or receive withdrawn funds. Connected via Plaid (for US bank accounts) or manually (for wire payouts). Identified by an `fs_…` prefixed ID.
+
+**Deposit**
+A transfer of money from an investor's external bank account into their Buildmarkets brokerage wallet. Initiated via `POST /v1/investors/{investor_id}/deposits`. Methods: `ach`, `manual_bank_transfer`, `international_wire`, `mobile_money`, `card`.
+
+**Withdrawal**
+A transfer of settled funds from an investor's Buildmarkets brokerage wallet back to their external bank account. Initiated via `POST /v1/investors/{investor_id}/withdrawals`. The `cash_withdrawable` field on the investor reflects the amount available for withdrawal.
+
+**Settlement**
+The process by which a trade or funding transfer is finalized and the proceeds are credited or debited. ACH deposits typically settle in 1–5 business days. Trade settlements follow standard T+1 (equities) or T+2 (bonds) conventions.
+
+**Buying Power**
+The total amount an investor can currently spend on trades, including unsettled deposits that the platform has made available. Returned as `buying_power` on the investor and wallet resources. Always check `buying_power` before placing an order to avoid `BLUM-422-001` errors.
+
+---
+
+## Market data terms
+
+**Quote**
+The current best bid and ask price for an asset, along with the last traded price. Returned from `GET /v1/market-data/assets/{symbol}/quote`. Includes a `confidence` field (`REAL_TIME`, `DELAYED`, `END_OF_DAY`, `STALE`) indicating data freshness.
+
+**OHLCV**
+Open, High, Low, Close, Volume — the five data points that make up a price bar for a given time period.
+
+**Bar**
+A single OHLCV data point representing price action over a specific timeframe (e.g., `1Min`, `1Day`, `1Week`). Historical bars are returned from `GET /v1/market-data/assets/{symbol}/bars`.
+
+**Snapshot**
+A comprehensive point-in-time view of an asset including the latest trade, bid/ask quote, daily bar, previous close, and price change calculations. Returned from `GET /v1/market-data/assets/{symbol}/snapshot`.
+
+**Symbol**
+The ticker identifier for a tradable asset (e.g., `AAPL`, `VTI`, `GOOGL`). For US Treasury bonds, the symbol may be a CUSIP when no ticker is available. Use `GET /v1/assets/search` to look up symbols.
+
+**Exchange**
+The venue where an asset trades, identified by its ISO 10383 MIC code. Common codes: `XNAS` (NASDAQ), `XNYS` (NYSE), `XNSA` (Nigerian Stock Exchange). Market reference data is available from `GET /v1/markets`.
+
+---
+
+## Technical terms
+
+**Cursor Pagination**
+The pagination mechanism used by Buildmarkets list endpoints. Responses include `has_more: true` and a `next_cursor` value. Pass `cursor=<next_cursor>` as a query parameter to fetch the next page. Do not use offset-based pagination — only cursor-based is supported.
+
+**ISO 8601**
+The international date and time format used throughout the Buildmarkets API. All timestamps are UTC strings in the format `2025-06-01T14:32:00Z`. Use this format when submitting timestamps such as `signed_at` on agreements.
+
+**Decimal String**
+Dollar amounts in the Buildmarkets API are represented as decimal strings rather than floating-point numbers. This avoids floating-point precision loss on monetary values. Example: `"amount": "1000.00"` not `"amount": 1000.00`.
+
+**UUID**
+Universally Unique Identifier — the format used for some internal resource IDs. Not all IDs are UUIDs; most Buildmarkets resource IDs use a prefixed format (`inv_…`, `ord_…`, `dep_…`). Always treat IDs as opaque strings.
+
+**Webhook**
+An HTTP callback that Buildmarkets fires to your registered endpoint when a significant event occurs — such as an order fill, KYC approval, or deposit settlement. Webhooks are the recommended mechanism for staying in sync with state changes, rather than polling. Register endpoints via `POST /v1/webhooks`.
+
+**Event Type**
+The category of a webhook payload, in dot-notation format. Examples: `order.filled`, `kyc.verification.approved`, `transfer.deposit.completed`. Subscribe to specific event types when registering a webhook to receive only the events relevant to your integration.
+
+**livemode**
+A boolean field present on every Buildmarkets resource that indicates whether the resource was created in the production (`true`) or sandbox (`false`) environment. Use this to prevent sandbox data from appearing in production UI.
+
+**Resource Envelope**
+The standard wrapper applied to every Buildmarkets resource response. Contains: `id` (prefixed resource ID), `object` (resource type string), `created` (Unix timestamp), `livemode` (boolean), and `metadata` (partner-defined key-value pairs).

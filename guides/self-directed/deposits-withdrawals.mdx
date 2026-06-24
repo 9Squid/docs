@@ -1,0 +1,224 @@
+---
+title: "Initiate ACH Deposits and Withdrawals"
+sidebarTitle: "Deposits & Withdrawals"
+description: "Move money in and out of investor brokerage accounts via ACH transfers. Covers creating, monitoring, and cancelling deposits and withdrawals."
+---
+
+Once an investor has a linked funding source, you can move money between their external bank account and their Buildmarkets brokerage wallet. Deposits pull funds into the investor's wallet; withdrawals push settled cash back out. Both operations are ACH-based by default, subject to standard ACH settlement timelines.
+
+All amounts are strings with exactly two decimal places — for example, `"1000.00"`. Passing an integer or omitting the decimal will return a `400` validation error.
+
+## Prerequisites
+
+- Investor account with `status: active`
+- At least one connected funding source with `status: active` (see [Bank Linking](/guides/self-directed/bank-linking))
+
+## Transfer lifecycle
+
+Both deposits and withdrawals move through these states:
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Transfer submitted; awaiting ACH initiation |
+| `processing` | Transfer sent to ACH network; in transit |
+| `completed` | Funds have settled successfully |
+| `cancelled` | Transfer cancelled before clearing |
+| `failed` | Transfer returned by the bank (e.g. insufficient funds, closed account) |
+
+Subscribe to the funding webhook events below to track these transitions without polling.
+
+<Steps>
+  <Step title="Create a deposit">
+    Initiate an ACH deposit by specifying the amount, currency, method, and the funding source to pull from. The `funding_source_id` must reference an `active` funding source.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/deposits \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "amount": "1000.00",
+        "currency": "USD",
+        "method": "ach",
+        "funding_source_id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef"
+      }'
+    ```
+
+    A successful request returns `201 Created`:
+
+    ```json
+    {
+      "id": "dep_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "object": "deposit",
+      "method": "ach",
+      "status": "pending",
+      "amount": "1000.00",
+      "currency": "USD",
+      "description": null,
+      "method_details": {
+        "provider_name": "alpaca",
+        "transfer_id": "adc51a07-1f60-4616-abbc-4c67f0c7b047",
+        "alpaca_status": "QUEUED"
+      },
+      "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "wallet_id": "wlt_01j9x8m2k7qpzwv3t5r6y8n0cd",
+      "funding_source_id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef",
+      "initiated_at": "2026-05-20T10:00:00.000Z",
+      "received_at": null,
+      "completed_at": null,
+      "failure_reason": null
+    }
+    ```
+
+    Store the `id` (the `dep_…` prefixed string) to track this deposit's status.
+
+    <Note>
+      ACH deposits typically settle in 1–3 business days. Buildmarkets may apply instant buying power for deposits up to a configured limit, allowing your users to start trading before funds fully clear. Check with your account manager to enable and configure this feature.
+    </Note>
+  </Step>
+
+  <Step title="Monitor deposit status">
+    Poll the deposit endpoint or use webhooks to track when funds settle.
+
+    **Retrieve a specific deposit:**
+
+    ```bash
+    curl https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/deposits/dep_01j9x8m2k7qpzwv3t5r6y8n0ab \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET"
+    ```
+
+    **List all deposits for an investor:**
+
+    ```bash
+    curl "https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/deposits?status=pending" \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET"
+    ```
+
+    The list endpoint supports filtering by `status`, `method`, `currency`, `date_from`, `date_to`, `limit`, and `offset`.
+  </Step>
+
+  <Step title="Create a withdrawal">
+    Withdraw settled cash from the investor's wallet back to their bank account. Only settled cash is eligible — unsettled funds from recent deposits or pending trades cannot be withdrawn.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/withdrawals \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "amount": "500.00",
+        "currency": "USD",
+        "method": "ach",
+        "funding_source_id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef",
+        "description": "Monthly withdrawal"
+      }'
+    ```
+
+    A successful request returns `201 Created`:
+
+    ```json
+    {
+      "id": "wd_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "object": "withdrawal",
+      "method": "ach",
+      "status": "pending",
+      "amount": "500.00",
+      "currency": "USD",
+      "description": "Monthly withdrawal",
+      "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
+      "wallet_id": "wlt_01j9x8m2k7qpzwv3t5r6y8n0cd",
+      "funding_source_id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef",
+      "initiated_at": "2026-05-20T10:00:00.000Z",
+      "completed_at": null,
+      "failure_reason": null
+    }
+    ```
+  </Step>
+
+  <Step title="Cancel a pending transfer">
+    Cancel a deposit that hasn't yet been sent to the ACH network by calling the cancel endpoint. Only transfers in `pending` status are eligible for cancellation.
+
+    ```bash
+    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/deposits/dep_01j9x8m2k7qpzwv3t5r6y8n0ab/cancel \
+      -H "X-API-Key: YOUR_API_KEY" \
+      -H "X-API-Secret: YOUR_API_SECRET"
+    ```
+
+    The response returns the updated deposit object with `status: cancelled`.
+
+    <Warning>
+      You cannot cancel a deposit once it has reached `processing` or `completed` status. Cancellation attempts on non-pending transfers return a `400` error. If a completed deposit needs to be reversed, initiate a withdrawal instead.
+    </Warning>
+  </Step>
+</Steps>
+
+## Wire transfer instructions
+
+For investors depositing via wire transfer, use the `manual_bank_transfer` method. The deposit response includes wire instructions in `method_details.bank_details`. You can also retrieve a formatted PDF of the wire instructions:
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/deposits/dep_01j9x8m2k7qpzwv3t5r6y8n0gh/wire-details \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  --output wire-instructions.pdf
+```
+
+<Note>
+  The wire details endpoint is only available for deposits created with `method: manual_bank_transfer`. Calling it on an ACH deposit returns a `400` error.
+</Note>
+
+## Idempotency
+
+Pass an `Idempotency-Key` header on deposit and withdrawal requests to prevent duplicate transfers if you need to retry a failed request. Buildmarkets returns the original response for any request that shares an idempotency key you've already used.
+
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/deposits \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "X-API-Secret: YOUR_API_SECRET" \
+  -H "Idempotency-Key: deposit-jane-doe-2026-05-20-001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "1000.00",
+    "currency": "USD",
+    "method": "ach",
+    "funding_source_id": "fs_01j9x8m2k7qpzwv3t5r6y8n0ef"
+  }'
+```
+
+## Webhook events
+
+Subscribe to these events for real-time transfer status updates:
+
+| Event | Fired when |
+|-------|------------|
+| `funding.deposit.pending` | Deposit accepted and queued for ACH |
+| `funding.deposit.completed` | Deposit settled; funds available |
+| `funding.deposit.failed` | Deposit failed or returned by the bank |
+| `funding.withdrawal.pending` | Withdrawal accepted and queued for ACH |
+| `funding.withdrawal.completed` | Withdrawal settled at destination bank |
+| `funding.withdrawal.failed` | Withdrawal failed or returned by the bank |
+
+## Common errors
+
+| HTTP Status | Error | Cause |
+|-------------|-------|-------|
+| `400` | `INVALID_AMOUNT` | Amount doesn't match `^\d+\.\d{2}$` pattern or is zero |
+| `400` | `INVALID_METHOD` | Unsupported deposit method |
+| `404` | `INVESTOR_NOT_FOUND` | The `investor_id` doesn't exist or is inaccessible |
+| `404` | `FUNDING_SOURCE_NOT_FOUND` | The `funding_source_id` doesn't exist for this investor |
+| `409` | `FUNDING_SOURCE_NOT_ACTIVE` | Referenced funding source is not in `active` status |
+| `422` | `INSUFFICIENT_FUNDS` | Withdrawal amount exceeds settled cash balance |
+| `422` | `ACCOUNT_NOT_ACTIVE` | Investor account is not in `active` status |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Placing Orders" href="/guides/self-directed/placing-orders">
+    Place buy and sell orders once the investor's account has buying power.
+  </Card>
+  <Card title="Bank Linking" href="/guides/self-directed/bank-linking">
+    Connect a funding source before initiating deposits.
+  </Card>
+</CardGroup>
