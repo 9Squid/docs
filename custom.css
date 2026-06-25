@@ -254,8 +254,7 @@ img[alt="Buildmarkets"] {
    ========================================================================== */
 .landing-candles {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 33px;
   width: 335px;
   pointer-events: none;
   z-index: 1;
