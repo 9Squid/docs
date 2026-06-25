@@ -282,28 +282,4 @@ img[alt="Buildmarkets"] {
   .landing-btn-secondary { width: 100%; justify-content: center; }
 }
 
-/* ==========================================================================
-   GLOBAL MINTLIFY FIXES
-   ========================================================================== */
-/* Force all default Mintlify primary buttons/accents to be Blue in Light Mode */
-html:not(.dark) .bg-primary,
-html:not(.dark) .bg-primary-light,
-html:not(.dark) a.bg-primary,
-html:not(.dark) button.bg-primary,
-html:not(.dark) a[href*="dash.readme.com"],
-html:not(.dark) .text-primary {
-  background-color: var(--bm-blue) !important;
-  color: #FFFFFF !important;
-}
 
-html:not(.dark) .text-primary {
-  background-color: transparent !important;
-  color: var(--bm-blue) !important;
-}
-
-html:not(.dark) .bg-primary:hover,
-html:not(.dark) a.bg-primary:hover,
-html:not(.dark) button.bg-primary:hover,
-html:not(.dark) a[href*="dash.readme.com"]:hover {
-  background-color: var(--bm-blue-dark) !important;
-}
