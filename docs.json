@@ -1,14 +1,14 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "luma",
+  "theme": "mint",
   "name": "Buildmarkets",
-  "description": "White-label brokerage and wealth management infrastructure. Accounts, KYC, equity and ETF trading, ACH funding, market data, and documents — through a single API.",
+  "description": "Build, launch, & scale compliant investment products. Access Buildmarkets' API docs, SDKs, & tutorials to embed trading, fractional shares, & custody.",
   "colors": {
     "primary": "#3E5FFE",
     "light": "#8D98FF",
     "dark": "#3549A3"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.png",
   "navbar": {
     "links": [
       {
@@ -19,11 +19,18 @@
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://dash.buildmarkets.com"
+      "href": "https://dash.readme.com/to/tapp-engine"
     }
   },
   "navigation": {
     "tabs": [
+      {
+        "tab": "Home",
+        "icon": "home",
+        "pages": [
+          "index"
+        ]
+      },
       {
         "tab": "Get Started",
         "groups": [
@@ -92,6 +99,12 @@
         ]
       },
       {
+        "tab": "Wealth Management",
+        "pages": [
+          "wealth"
+        ]
+      },
+      {
         "tab": "FIX Gateway",
         "groups": [
           {
@@ -125,14 +138,10 @@
         ]
       },
       {
-        "tab": "API Reference",
-        "groups": [
-          {
-            "group": "Overview",
-            "pages": [
-              "api-reference/introduction"
-            ]
-          }
+        "tab": "Changelog",
+        "icon": "clock-rotate-left",
+        "pages": [
+          "changelog"
         ]
       },
       {
@@ -149,18 +158,79 @@
             "group": "Reference",
             "pages": [
               "resources/error-codes",
-              "resources/glossary",
+              "resources/glossary"
+            ]
+          },
+          {
+            "group": "Support",
+            "pages": [
               "resources/support"
             ]
           }
         ]
       }
-    ]
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Buildmarkets",
+          "icon": "globe",
+          "href": "https://buildmarkets.com"
+        },
+        {
+          "anchor": "Status",
+          "icon": "chart-simple",
+          "href": "https://status.buildmarkets.com"
+        }
+      ]
+    }
   },
   "footer": {
     "socials": {
       "x": "https://x.com/buildmarkets",
-      "linkedin": "https://www.linkedin.com/company/buildmarkets"
+      "linkedin": "https://www.linkedin.com/company/buildmarkets",
+      "github": "https://github.com/buildmarkets"
     }
+  },
+  "logo": {
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png"
+  },
+  "api": {
+    "openapi": {
+      "source": "api-reference/openapi.yaml"
+    },
+    "playground": {}
+  },
+  "background": {
+    "color": {
+      "light": "#FFFFFF",
+      "dark": "#051132"
+    }
+  },
+  "fonts": {
+    "heading": {
+      "family": "Gelasio",
+      "weight": 500
+    },
+    "body": {
+      "family": "Geist"
+    }
+  },
+  "styling": {
+    "codeblocks": "system",
+    "latex": false
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "vscode"
+    ],
+    "display": "header"
   }
 }
