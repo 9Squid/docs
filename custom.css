@@ -283,22 +283,17 @@ img[alt="Buildmarkets"] {
 }
 
 /* ==========================================================================
-   DASHBOARD BUTTON OVERRIDE
-   Match exact Figma design (Lime green background, black text, 10px radius)
+   GLOBAL MINTLIFY PRIMARY BUTTON FIX
+   Force text on primary buttons (which are Lime Green) to be Black for readability
    ========================================================================== */
-a[href="https://dash.readme.com/to/tapp-engine"],
-a[href="https://dash.readme.com/to/tapp-engine"] button,
-a[href="https://dash.readme.com/to/tapp-engine"] div {
-  background-color: #E0FE66 !important;
+.bg-primary, .bg-primary-light, .bg-primary-dark,
+button[class*="bg-primary"], a[class*="bg-primary"] {
   color: #0F0E0F !important;
-  border-radius: 10px !important;
-  border: none !important;
 }
 
-a[href="https://dash.readme.com/to/tapp-engine"]:hover,
-a[href="https://dash.readme.com/to/tapp-engine"] button:hover,
-a[href="https://dash.readme.com/to/tapp-engine"] div:hover {
-  background-color: #ABDB07 !important;
+/* Ensure the navbar button is fully rounded if Mintlify uses a wrapper */
+.bg-primary {
+  border-radius: 10px !important;
 }
 
 
