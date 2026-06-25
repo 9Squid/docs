@@ -23,9 +23,6 @@
       "dark": "#231E23"
     }
   },
-  "custom": {
-    "stylesheet": "/custom.css"
-  },
   "favicon": "/favicon.png",
   "logo": {
     "light": "/logo/light.png",
