@@ -284,25 +284,4 @@ img[alt="Buildmarkets"] {
   .landing-btn-secondary { width: 100%; justify-content: center; }
 }
 
-/* ==========================================================================
-   GLOBAL MINTLIFY PRIMARY BUTTON FIX
-   Force text on primary buttons (which are Lime Green) to be Black for readability
-   ========================================================================== */
-.bg-primary, .bg-primary-light, .bg-primary-dark,
-button[class*="bg-primary"], a[class*="bg-primary"] {
-  background-color: #E0FE66 !important;
-  color: #0F0E0F !important;
-  border-radius: 10px !important;
-  filter: none !important;
-  opacity: 1 !important;
-  border: none !important;
-  box-shadow: none !important;
-}
 
-/* Exact Figma Hover State */
-.bg-primary:hover, .bg-primary-light:hover, .bg-primary-dark:hover,
-button[class*="bg-primary"]:hover, a[class*="bg-primary"]:hover {
-  background-color: #ABDB07 !important;
-  filter: none !important;
-  opacity: 1 !important;
-}
