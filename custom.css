@@ -284,4 +284,37 @@ img[alt="Buildmarkets"] {
   .landing-btn-secondary { width: 100%; justify-content: center; }
 }
 
+/* ==========================================================================
+   GLOBAL MINTLIFY PRIMARY BUTTON FIX (GREEN/BLACK THEME)
+   Forces solid buttons to use the Lime Green Figma design, while leaving
+   the base docs.json theme Blue so text-only links stay readable.
+   ========================================================================== */
+html body .bg-primary,
+html body .bg-primary-light,
+html body .bg-primary-dark,
+html body a[href*="dash.readme.com"] {
+  background-color: #E0FE66 !important;
+  color: #0F0E0F !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  border: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Force inner text and icons to be black */
+html body .bg-primary *,
+html body a[href*="dash.readme.com"] * {
+  color: #0F0E0F !important;
+  fill: #0F0E0F !important;
+}
+
+/* Hover state matching Figma */
+html body .bg-primary:hover,
+html body a[href*="dash.readme.com"]:hover {
+  background-color: #ABDB07 !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
 
