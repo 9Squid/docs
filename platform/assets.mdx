@@ -1,163 +1,61 @@
 ---
-title: "Search Assets and Access Market Data with Buildmarkets"
+title: "Assets & Market Data"
 sidebarTitle: "Assets"
-description: "Search the Buildmarkets asset catalog by symbol or name, retrieve asset details, and access live quotes and historical price bars for equities and ETFs."
+description: "Access real-time quotes, historical prices, fundamentals, dividends, news, logos, and reference data for U.S.-listed equities."
 ---
 
-Before placing an order or building a search experience, you need information about tradable assets — what's available, whether it's fractionable, and its current price. Buildmarkets provides asset search and lookup endpoints alongside a full market data suite covering real-time quotes, historical price bars, company profiles, and more. All market data comes included with your Buildmarkets integration — no separate subscription required.
+## Introduction
 
-## Search for assets
+Buildmarkets's Market Data APIs offer access to comprehensive financial data for U.S.-listed equities, sourced from QuoteMedia. All data comes included with your Buildmarkets integration—no separate subscription needed.
 
-Use the search endpoint to find assets by ticker symbol or company name. This is the right starting point for building a security search bar in your app.
+## Available Data Categories
 
-```bash
-curl "https://dev-tapp-api.tappengine.com/v1/assets/search?q=Apple&class=equity&country=us" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
+The platform provides:
+
+- **Real-time quotes** via `GET /v1/marketdata/real-time/{symbol}` — current bid, ask, last price, and volume
+- **Historical prices** via `GET /v1/marketdata/historical/{symbol}` — end-of-day OHLCV bars with date filtering
+- **Company profile** via `GET /v1/marketdata/company-profile/{symbol}` — market cap, P/E ratio, sector, description
+- **Financials** via `GET /v1/marketdata/balance-sheet/{symbol}` — balance sheets and income statements (annual and quarterly)
+- **Dividends** via `GET /v1/marketdata/cash-dividends/{symbol}` — cash dividend records with ex-dates
+- **News** via `GET /v1/marketdata/news/{symbol}` — articles and corporate actions linked to symbols
+- **Logos** via `GET /v1/marketdata/logos/{symbol}` — company logo images
+- **Reference data** — security master, symbol details, sectors, and industries
+
+## Symbol Formats
+
+Endpoints accept ticker symbols (e.g., `AAPL`) or identifiers with a `*` prefix:
+- `*CUSIP` format for CUSIP-based lookups
+- `*ISIN` format for international securities identification
+
+The asterisk prefix indicates the API should treat input as an instrument identifier rather than a ticker symbol. This feature works on balance-sheet and cash-dividends endpoints.
+
+## Complete Endpoint List
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/v1/marketdata/real-time/{symbol}` | Live bid/ask/last quote |
+| GET | `/v1/marketdata/historical/{symbol}` | EOD OHLCV bars |
+| GET | `/v1/marketdata/company-profile/{symbol}` | Company details and fundamentals |
+| GET | `/v1/marketdata/balance-sheet/{symbol}` | Financial statements (annual or quarterly) |
+| GET | `/v1/marketdata/cash-dividends/{symbol}` | Dividend history |
+| GET | `/v1/marketdata/news/{symbol}` | News and corporate actions |
+| GET | `/v1/marketdata/logos/{symbol}` | Company logo image |
+| POST | `/v1/marketdata/reference/equity-security-master` | Paginated list of all tradeable equities |
+| POST | `/v1/marketdata/reference/symbol-details` | Bulk details for a list of symbols |
+| POST | `/v1/marketdata/reference/sector-symbols` | All symbols within a given sector |
+| GET | `/v1/marketdata/reference/sectors` | All available sectors |
+| GET | `/v1/marketdata/reference/industries` | All available industries |
+
+## Authentication
+
+All endpoints use API key authentication via the `Authorization` header:
+
+```
+Authorization: Bearer $BUILDMARKETS_API_KEY
 ```
 
-**Example response:**
+Refer to the Authentication Overview documentation for additional details.
 
-```json
-{
-  "data": [
-    {
-      "id": "b0b6dd9d-8b9b-48b9-bbb8-bbbb49bb1bbb",
-      "class": "equity",
-      "country": "us",
-      "market": "XNAS",
-      "symbol": "AAPL",
-      "name": "Apple Inc.",
-      "status": "active",
-      "tradable": true,
-      "fractionable": true,
-      "marginable": true,
-      "currency": "USD"
-    }
-  ],
-  "count": 1
-}
-```
+## Rate Limiting
 
-### Search parameters
-
-| Parameter | Description |
-|---|---|
-| `q` | Search query — ticker symbol, company name, or partial match |
-| `class` | Asset class: `equity`, `etf`, `bond`, `mutual_fund`, `cryptocurrency`, etc. |
-| `country` | ISO 3166-1 alpha-2 country code in lowercase, e.g. `us`, `ng` |
-| `status` | `active` (default) or `inactive` |
-| `limit` | Results to return (default 50, max 100) |
-
-## Get a single asset by symbol
-
-Look up full details for a specific ticker, including current price data:
-
-```bash
-curl "https://dev-tapp-api.tappengine.com/v1/assets/AAPL?market=XNAS" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
-
-**Example response:**
-
-```json
-{
-  "data": {
-    "id": "b0b6dd9d-8b9b-48b9-bbb8-bbbb49bb1bbb",
-    "class": "equity",
-    "country": "us",
-    "market": "XNAS",
-    "symbol": "AAPL",
-    "name": "Apple Inc.",
-    "status": "active",
-    "tradable": true,
-    "fractionable": true,
-    "marginable": true,
-    "currency": "USD",
-    "price": 178.50,
-    "change": 1.50,
-    "changePercent": 0.85,
-    "previousClose": 177.00,
-    "bidPrice": 178.48,
-    "askPrice": 178.52
-  }
-}
-```
-
-Providing the optional `market` hint (e.g., `XNAS`, `XNYS`, `BATS`) makes the lookup faster by targeting a specific provider. Without it, all available providers are searched.
-
-## Asset fields
-
-| Field | Description |
-|---|---|
-| `symbol` | Ticker symbol, e.g. `AAPL` |
-| `name` | Full company or fund name |
-| `class` | Canonical instrument class: `equity`, `etf`, `bond`, etc. |
-| `country` | ISO 3166-1 alpha-2 country code (lowercase), e.g. `us` |
-| `market` | Exchange MIC code: `XNAS`, `XNYS`, `BATS`, `ARCA`, `XNSA` |
-| `status` | `active` — available for trading; `inactive` — not currently tradable |
-| `tradable` | `true` if the asset can be submitted in an order right now |
-| `fractionable` | `true` if notional (dollar-based) orders are supported |
-| `marginable` | `true` if the asset is eligible for margin |
-| `currency` | Settlement currency, typically `USD` |
-
-## Real-time quotes
-
-Fetch a live bid, ask, and last-traded price for any active asset:
-
-```bash
-curl "https://dev-tapp-api.tappengine.com/v1/market-data/assets/AAPL/quote" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
-
-<Tip>
-  For high-frequency display scenarios — like a live ticker — implement client-side caching with a short TTL (1–2 seconds). Avoid polling the same symbol more than once per second in production.
-</Tip>
-
-## Historical price bars
-
-Retrieve OHLCV (open, high, low, close, volume) bar data for chart displays:
-
-```bash
-curl "https://dev-tapp-api.tappengine.com/v1/assets/chart?symbol=AAPL&period=1Y" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
-
-## Asset snapshot
-
-Get a combined snapshot of current price, daily change, and key metrics for one or more symbols — optimized for populating watchlists and portfolio rows:
-
-```bash
-curl "https://dev-tapp-api.tappengine.com/v1/market-data/assets/AAPL/snapshot" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
-
-## Asset and market data endpoints summary
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/v1/assets/search` | Search for assets by symbol or name |
-| `GET` | `/v1/assets` | List all assets with optional filtering |
-| `GET` | `/v1/assets/{symbol}` | Get a single asset with current price data |
-| `GET` | `/v1/assets/chart` | Historical OHLCV bar data |
-| `GET` | `/v1/market-data/assets/{symbol}/quote` | Live bid/ask/last price |
-| `GET` | `/v1/market-data/assets/{symbol}/bars` | Historical price bars |
-| `GET` | `/v1/market-data/assets/{symbol}/snapshot` | Combined snapshot for display |
-| `GET` | `/v1/market-data/markets` | List supported market venues |
-| `GET` | `/v1/market-data/markets/{code}/status` | Market open/closed status |
-| `GET` | `/v1/market-data/markets/{code}/calendar` | Market trading calendar |
-
-## Supported markets
-
-| MIC code | Exchange |
-|---|---|
-| `XNAS` | NASDAQ |
-| `XNYS` | New York Stock Exchange |
-| `BATS` | Cboe BZX Exchange |
-| `ARCA` | NYSE Arca |
-| `OTC` | OTC Markets |
-| `XNSA` | Nigerian Stock Exchange |
+Market data endpoints share the same rate limit pool as other Buildmarkets API endpoints. Real-time quote endpoints support frequent polling but shouldn't exceed one call per second per symbol in production environments. For high-frequency display scenarios, implement client-side caching with a short TTL (1–2 seconds recommended).

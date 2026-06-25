@@ -1,75 +1,58 @@
 ---
-title: "New Order Single (MsgType=D): Place Equity Orders via FIX"
-sidebarTitle: "New Order Single"
-description: "Submit equity and ETF orders through the FIX gateway using New Order Single (MsgType=D). Includes all required and optional tags with valid values."
+title: "New Order Single <D>"
+sidebarTitle: "New Order Single <D>"
+description: "How to create new equity or single-leg option orders through the FIX Gateway using the New Order Single message."
 ---
 
-The New Order Single message (`MsgType=D`) is the primary way to submit equity and single-leg option orders through the Buildmarkets FIX gateway. Each message must carry a unique `ClOrdID` (Tag 11) that your system assigns — this identifier is used to correlate every subsequent Execution Report back to the originating order. The gateway responds with an Execution Report acknowledging receipt, and further Execution Reports as the order is filled or rejected.
+## Overview
 
-## Field Reference
+The New Order Single message (MsgType = `"D"`) creates new equity or single-leg option orders through the FIX Gateway.
 
-Tags marked **Y** in the Required column must be present on every New Order Single. Tags marked **C** are conditionally required based on the order type.
+## Field Layout
 
-| Tag | Field | Required | Type | Description | Valid Values |
-|---|---|---|---|---|---|
-| 1 | Account | Y | String | Trading account identifier | Your assigned account number |
-| 11 | ClOrdID | Y | String | Unique client-assigned order ID | Any unique string per session |
-| 38 | OrderQty | Y | Qty | Number of shares or contracts to trade | Integer; use `0` for dollar-amount orders |
-| 40 | OrdType | Y | Char | Order type | `1`=Market, `2`=Limit, `3`=Stop, `4`=Stop Limit |
-| 44 | Price | C | Price | Limit price per unit | Required when `OrdType=2` or `OrdType=4` |
-| 48 | SecurityID | N | String | Venue-specific security identifier | Numeric security ID if known |
-| 54 | Side | Y | Char | Order direction | `1`=Buy, `2`=Sell |
-| 55 | Symbol | Y | String | Security ticker symbol | Uppercase, e.g. `AAPL`, `MSFT` |
-| 59 | TimeInForce | Y | Char | Order duration | `0`=Day, `1`=GTC |
-| 60 | TransactTime | Y | UTCTimestamp | Timestamp of order entry | `YYYYMMDD-HH:MM:SS.sss` |
-| 76 | ExecBroker | N | String | Executing broker identifier | Assigned by Buildmarkets if applicable |
-| 99 | StopPx | C | Price | Stop trigger price | Required when `OrdType=3` or `OrdType=4` |
-| 152 | CashOrderQty | N | Numeric | Dollar amount for notional orders | Decimal; set `OrderQty=0` when using this tag |
-| 167 | SecurityType | Y | String | Instrument classification | `CS`=Common Stock, `OPT`=Option |
-| 200 | MaturityMonthYear | C | MonthYear | Option expiry month and year | `YYYYMM` format, e.g. `202603` |
-| 201 | PutOrCall | C | Int | Option right | `0`=Put, `1`=Call |
-| 202 | StrikePrice | C | Price | Option strike price | Decimal, e.g. `230.00` |
-| 205 | MaturityDay | C | Int | Option expiry day of month | `1`–`31` |
-
-<Note>
-Tags 200, 201, 202, and 205 are required when `SecurityType=OPT`. The `PutOrCall` convention follows the FIX 4.4 standard: `1`=Call and `0`=Put. Note this is the reverse of some REST API conventions — double-check this mapping in your OMS configuration.
-</Note>
+| Tag | Field | Description | Required | Type | Values |
+|-----|-------|-------------|----------|------|--------|
+| 1 | Account | Trading account | Y | String | |
+| 11 | ClOrdID | Unique order identifier assigned by client | Y | String | |
+| 38 | OrderQty | Order quantity (contracts or shares) | Y | Qty | `0` for Dollar Amount orders |
+| 40 | OrdType | Order type | Y | Char | `1`=Market, `2`=Limit, `3`=Stop, `4`=Stop Limit |
+| 44 | Price | Limit price per unit | C | Price | Required when OrdType = 2 or 4 |
+| 48 | SecurityID | Security identifier (venue-specific) | N | String | |
+| 54 | Side | Order side | Y | Char | `1`=Buy, `2`=Sell |
+| 55 | Symbol | Security symbol (uppercase) | Y | String | e.g., `AAPL`, `MSFT` |
+| 59 | TimeInForce | Duration of order | Y | Char | `0`=Day, `1`=GTC |
+| 60 | TransactTime | Transaction timestamp | Y | UTCTimestamp | |
+| 76 | ExecBroker | Executing broker identifier | N | String | |
+| 99 | StopPx | Stop price | N | Price | Required when OrdType = 3 or 4 |
+| 152 | CashOrderQty | Dollar amount for notional orders | N | Numeric | See Dollar Amount Orders |
+| 167 | SecurityType | Instrument type | Y | String | `CS`=Common Stock, `OPT`=Option |
+| 200 | MaturityMonthYear | Option expiry year/month | N | MonthYear | Format: `YYYYMM` |
+| 201 | PutOrCall | Put or Call indicator | N | Int | `0`=Put, `1`=Call |
+| 202 | StrikePrice | Option strike price | N | Price | |
+| 205 | MaturityDay | Option expiry day of month | N | Int | 1–31 |
 
 ## Examples
 
 ### Equity Market Order — Buy 100 shares of AAPL at market
-
-```fix
-8=FIX.4.4|35=D|49=CLIENT1|56=BUILDMARKETS|34=5|52=20260212-14:30:00.000|
-11=ORD-20260212-001|1=ACC123456789|55=AAPL|167=CS|54=1|38=100|40=1|59=0|
-60=20260212-14:30:00.000|10=123|
+```
+8=FIX.4.4|35=D|49=CLIENT1|56=BUILDMARKETS|11=ORD-20260212-001|1=ACC123456789|55=AAPL|167=CS|54=1|38=100|40=1|59=0|60=20260212-14:30:00.000|10=123|
 ```
 
-### Equity Limit Order — Buy 50 shares of MSFT at $420.00 GTC
-
-```fix
-8=FIX.4.4|35=D|49=CLIENT1|56=BUILDMARKETS|34=6|52=20260212-14:30:05.000|
-11=ORD-20260212-002|1=ACC123456789|55=MSFT|167=CS|54=1|38=50|40=2|44=420.00|
-59=1|60=20260212-14:30:05.000|10=045|
+### Equity Limit Order — Buy 50 shares of MSFT at $420.00 limit, GTC
+```
+8=FIX.4.4|35=D|49=CLIENT1|56=BUILDMARKETS|11=ORD-20260212-002|1=ACC123456789|55=MSFT|167=CS|54=1|38=50|40=2|44=420.00|59=1|60=20260212-14:30:00.000|10=045|
 ```
 
 ### Single-Leg Option Order — Buy 5 AAPL March 2026 $230 Call contracts at $4.50 limit
-
-```fix
-8=FIX.4.4|35=D|49=CLIENT1|56=BUILDMARKETS|34=7|52=20260212-14:30:10.000|
-11=ORD-20260212-003|1=ACC123456789|55=AAPL|167=OPT|54=1|38=5|40=2|44=4.50|
-59=0|201=1|202=230.00|200=202603|205=20|60=20260212-14:30:10.000|10=067|
+```
+8=FIX.4.4|35=D|49=CLIENT1|56=BUILDMARKETS|11=ORD-20260212-003|1=ACC123456789|55=AAPL|167=OPT|54=1|38=5|40=2|44=4.50|59=0|201=1|202=230.00|200=202603|205=20|60=20260212-14:30:00.000|10=067|
 ```
 
-<Tip>
-For dollar-amount (notional) orders, set `OrderQty=0` and populate `CashOrderQty` (Tag 152) with the target dollar value. Market order type (`OrdType=1`) is required. See [Dollar-Amount and Fractional Share Orders](/fix-gateway/dollar-amount-fractional-orders) for details.
-</Tip>
+## Option Field Notes
 
-## Gateway Response
+When `SecurityType=OPT`: **Tag 201 (PutOrCall)** — `0`=Put, `1`=Call (FIX convention differs from REST API); **Tag 200 (MaturityMonthYear)** — Format `YYYYMM` (e.g., `202603` for March 2026); **Tag 205 (MaturityDay)** — Day of expiration (e.g., `20`); **Tag 202 (StrikePrice)** — Decimal strike price.
 
-After receiving a New Order Single, the gateway sends an Execution Report (`MsgType=8`) with:
+## REST Equivalent
 
-- `ExecType=0` (New) — the order has been acknowledged and is working.
-- `ExecType=8` (Rejected) — the order was rejected; check Tag 103 (`OrdRejReason`) and Tag 58 (`Text`) for the reason.
-
-Subsequent fills generate additional Execution Reports with `ExecType=F` (Trade) or `ExecType=2` (Fill) as the order executes.
+- Equity orders: `POST /api/external/create` with `SymbolType=1`
+- Option orders: `POST /api/external/create` with `SymbolType=2` and `OptionOrderLegs.*` parameters

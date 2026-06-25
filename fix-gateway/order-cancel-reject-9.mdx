@@ -1,59 +1,36 @@
 ---
-title: "Order Cancel Reject (MsgType=9): Cancel Request Declined"
-sidebarTitle: "Cancel Reject"
-description: "The Order Cancel Reject (MsgType=9) is returned when the gateway cannot process a cancel request — order already filled, cancelled, or expired."
+title: "Order Cancel Reject <9>"
+sidebarTitle: "Order Cancel Reject <9>"
+description: "How the gateway notifies clients when a cancellation request cannot be processed, and how to handle the rejection."
 ---
 
-The Order Cancel Reject message (`MsgType=9`) is sent by the Buildmarkets gateway when it cannot process your Order Cancel Request (`MsgType=F`). This is a receive-only message — you will never send it. The most common reasons for a cancel rejection are that the order has already been fully filled, has already been cancelled, has expired, or the `OrderID` provided does not match any known order on the gateway. The original order retains whatever state it was in before your cancel request arrived.
+## Overview
 
-## Field Reference
+The Order Cancel Reject message (MsgType = `"9"`) is sent by the gateway when a cancellation request cannot be processed. This typically occurs when an order is already filled, expired, or in a non-cancellable state.
 
-| Tag | Field | Required | Type | Description |
-|---|---|---|---|---|
-| 11 | ClOrdID | Y | String | `ClOrdID` from your cancel request (Tag 11 of the `MsgType=F`) |
-| 17 | ExecID | Y | String | Execution identifier assigned by the gateway for this event |
-| 37 | OrderID | Y | String | Gateway-assigned order identifier |
-| 39 | OrdStatus | Y | Char | Current status of the order (e.g. `2`=Filled, `4`=Canceled, `C`=Expired) — reflects the order's actual state, not the cancel attempt |
-| 41 | OrigClOrdID | Y | String | `ClOrdID` of the order that could not be cancelled |
-| 58 | Text | N | String | Human-readable explanation of why the cancel was rejected |
-| 434 | CxlRejResponseTo | Y | Int | Type of request being rejected — always `1` for cancel requests |
+## Field Layout
 
-## CxlRejResponseTo Values (Tag 434)
+| Tag | Field | Description | Required | Type | Values |
+|-----|-------|-------------|----------|------|--------|
+| 11 | ClOrdID | Identifier of the cancel request | Y | String | |
+| 17 | ExecId | Execution ID assigned by the gateway | Y | String | |
+| 37 | OrderId | OrderId assigned by the gateway | Y | String | |
+| 39 | OrdStatus | Current order status | Y | Char | `8`=Rejected |
+| 41 | OrigClOrdID | ClOrdID of the order that could not be cancelled | Y | String | |
+| 58 | Text | Reason for rejection (free text) | N | String | |
+| 434 | CxlRejResponseTo | Type of request being rejected | Y | Int | `1`=Order Cancel Request |
 
-| Value | Meaning |
-|---|---|
-| `1` | Response to an Order Cancel Request (`MsgType=F`) |
-| `2` | Response to an Order Cancel/Replace Request (`MsgType=G`) |
-
-## Common Rejection Reasons (Tag 58)
-
-While Tag 58 is free text, the following messages are typical from the Buildmarkets gateway:
-
-| Text Value | Explanation |
-|---|---|
-| `Order already filled` | The order completed execution before the cancel request arrived |
-| `Order already cancelled` | A prior cancel request already succeeded |
-| `Order expired` | The day order expired at market close |
-| `Invalid OrderID` | The `OrderID` in Tag 37 does not match any gateway order |
-| `Order in non-cancellable state` | The order is in a terminal or pending state that prevents cancellation |
-
-## Example
-
-```fix
-8=FIX.4.4|35=9|49=BUILDMARKETS|56=CLIENT1|34=60|52=20260212-15:00:00.500|
-11=CXL-20260212-001|17=EXEC-020|37=BMKT-78450|39=2|41=ORD-20260212-001|
-434=1|58=Order already filled|10=056|
+## Example Message
+```
+8=FIX.4.4|35=9|49=BUILDMARKETS|56=CLIENT1|11=CXL-20260212-001|17=EXEC-020|37=BMKT-78450|39=8|41=ORD-20260212-001|434=1|58=Order already filled|10=056|
 ```
 
-## Handling a Cancel Reject
+## Handling Cancel Rejects
 
-When you receive an Order Cancel Reject:
+1. Review Tag 58 (Text) for the human-readable rejection reason
+2. The original order maintains its current state — use Order Status Request to verify if needed
+3. Common rejection causes: order already filled, order already cancelled, order expired, or invalid OrderId
 
-1. Read Tag 58 (`Text`) to understand why the cancel was declined.
-2. Do **not** assume the order was cancelled — the order remains in its current state.
-3. Send an Order Status Request (`MsgType=H`) to confirm the order's current state if you are unsure.
-4. Update your OMS to reflect that the cancel attempt was unsuccessful before taking further action.
+## REST Equivalent
 
-<Note>
-A Cancel Reject does not mean your order is in an error state. It simply means the cancel arrived too late or the order was already terminal. Check the order's `OrdStatus` via a status request before deciding on any follow-up action.
-</Note>
+The REST cancel endpoint (`POST /api/external/cancel`) provides similar functionality, returning error details when cancellation fails.

@@ -1,282 +1,133 @@
 ---
-title: "Place Equity and ETF Orders via the Buildmarkets API"
+title: "Placing Orders"
 sidebarTitle: "Placing Orders"
-description: "Submit buy and sell orders for equities and ETFs — market, limit, stop, and stop-limit. Includes order estimation, fractional shares, and cancellation."
+description: "Full order request schema with examples for market and limit orders, plus how to modify, cancel, and retrieve fills with idempotency."
 ---
 
-The Buildmarkets trading API lets you submit orders on behalf of your investors across all major US equity and ETF securities. You can place market orders that fill at the current price, limit orders that only execute at your specified price or better, and stop orders for conditional execution. Before committing to an order, you can get a cost estimate to show your user what they're about to pay.
+This page covers the full `POST /v1/accounts/{accountId}/orders` request schema, code examples for every order type, and how to modify, cancel, and retrieve fills.
 
-Every order goes through a pending state before reaching the exchange. Once submitted, orders are routed for execution and fill asynchronously — subscribe to order webhooks rather than polling to handle fills efficiently.
+## Place an order — `POST /v1/accounts/{accountId}/orders`
 
-## Prerequisites
-
-- Investor account with `status: active`
-- Positive `buying_power` in the investor's wallet (check `GET /v1/investors/{investor_id}/wallets`)
-- A valid tradeable symbol (verify via `GET /v1/market-data/assets/{symbol}/quote`)
-
-## Get an order estimate
-
-Before placing an order, show your user an estimated cost using `POST /v1/investors/{investor_id}/order-estimates`. This call does not place an order — it returns an indicative estimate only. Actual execution price may differ, especially for market orders.
-
-<Tabs>
-  <Tab title="Market order estimate">
-    ```bash
-    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/order-estimates \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "symbol": "AAPL",
-        "side": "buy",
-        "type": "market",
-        "quantity": "10"
-      }'
-    ```
-  </Tab>
-  <Tab title="Notional estimate">
-    ```bash
-    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/order-estimates \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "symbol": "GOOGL",
-        "side": "buy",
-        "type": "market",
-        "notional": "500.00"
-      }'
-    ```
-  </Tab>
-  <Tab title="Limit order estimate">
-    ```bash
-    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/order-estimates \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "symbol": "MSFT",
-        "side": "buy",
-        "type": "limit",
-        "quantity": "2",
-        "limit_price": "400.00"
-      }'
-    ```
-  </Tab>
-</Tabs>
-
-<Steps>
-  <Step title="Place a market order">
-    Market orders execute at the best available price when the market is open. Specify either `quantity` (number of shares) or `notional` (dollar amount) — not both.
-
-    Always set `client_order_id` to a unique identifier for each order. This acts as an idempotency key: if your request times out and you retry, Buildmarkets returns the existing order rather than creating a duplicate.
-
-    <Tip>
-      Use a UUID v4 for `client_order_id`. A reliable scheme that's easy to debug: `{your-user-id}-{symbol}-{side}-{YYYYMMDD}-{sequence}`.
-    </Tip>
-
-    **Buy 10 shares of AAPL at market:**
-
-    ```bash
-    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "symbol": "AAPL",
-        "side": "buy",
-        "type": "market",
-        "time_in_force": "day",
-        "quantity": "10",
-        "extended_hours": false,
-        "client_order_id": "user-42-buy-aapl-20260514-001"
-      }'
-    ```
-
-    **Buy $500 of GOOGL at market (fractional/notional):**
-
-    ```bash
-    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "symbol": "GOOGL",
-        "side": "buy",
-        "type": "market",
-        "time_in_force": "day",
-        "notional": "500.00",
-        "client_order_id": "user-42-buy-googl-notional-20260514-001"
-      }'
-    ```
-
-    A successful request returns `201 Created` with the full order object:
-
-    ```json
-    {
-      "id": "ord_01j9x8m2k7qpzwv3t5r6y8n0ab",
-      "object": "order",
-      "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0cd",
-      "symbol": "AAPL",
-      "currency": "USD",
-      "side": "buy",
-      "type": "market",
-      "time_in_force": "day",
-      "quantity": "10",
-      "status": "pending",
-      "filled_quantity": "0",
-      "remaining_quantity": "10",
-      "average_price": "0.00",
-      "submitted_at": "2026-05-14T14:30:00Z",
-      "filled_at": null,
-      "cancelled_at": null,
-      "failure_reason": null
-    }
-    ```
-  </Step>
-
-  <Step title="Place a limit order">
-    Limit orders only execute at your specified `limit_price` or better. Use `time_in_force: gtc` (good till cancelled) to keep the order working across multiple trading days, or `day` to expire at market close if unfilled.
-
-    **Buy 5 shares of MSFT with a limit price of $350:**
-
-    ```bash
-    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "symbol": "MSFT",
-        "side": "buy",
-        "type": "limit",
-        "time_in_force": "gtc",
-        "quantity": "5",
-        "limit_price": "350.00",
-        "client_order_id": "user-42-buy-msft-limit-20260514-001"
-      }'
-    ```
-
-    **Sell 20 shares of TSLA with a stop price:**
-
-    ```bash
-    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "symbol": "TSLA",
-        "side": "sell",
-        "type": "stop",
-        "time_in_force": "gtc",
-        "quantity": "20",
-        "stop_price": "200.00",
-        "client_order_id": "user-42-sell-tsla-stop-20260514-001"
-      }'
-    ```
-  </Step>
-
-  <Step title="Monitor order status">
-    Retrieve a specific order by ID to check its current status:
-
-    ```bash
-    curl https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders/ord_01j9x8m2k7qpzwv3t5r6y8n0ab \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET"
-    ```
-
-    List all orders, optionally filtered by status:
-
-    ```bash
-    curl "https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders?status=open" \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET"
-    ```
-
-    Supported `status` filter values: `open`, `pending`, `filled`, `partial`, `cancelled`, `failed`.
-  </Step>
-
-  <Step title="Cancel a working order">
-    Cancel an open order that hasn't yet filled. Only orders in `pending` or `partial` status are cancellable.
-
-    ```bash
-    curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders/ord_01j9x8m2k7qpzwv3t5r6y8n0ab/cancel \
-      -H "X-API-Key: YOUR_API_KEY" \
-      -H "X-API-Secret: YOUR_API_SECRET"
-    ```
-
-    The response returns the updated order object with `status: cancelled` and a `cancelled_at` timestamp.
-
-    <Warning>
-      Cancellation is not guaranteed. If the order fills before the cancel request reaches the exchange, you will receive the order back with `status: filled`. Always check the returned order status rather than assuming cancellation succeeded.
-    </Warning>
-  </Step>
-</Steps>
-
-## Order request fields
+### Request fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `symbol` | string | ✅ | Ticker symbol (e.g. `"AAPL"`, `"SPY"`) |
+| `asset_class` | string | ✅ | `"equity"` or `"etf"` |
+| `order_type` | string | ✅ | `"market"` or `"limit"` |
 | `side` | string | ✅ | `"buy"` or `"sell"` |
-| `type` | string | ✅ | `"market"`, `"limit"`, `"stop"`, `"trailing_stop"` |
-| `time_in_force` | string | ✅ | `"day"`, `"gtc"`, `"opg"`, `"cls"`, `"ioc"`, `"fok"` |
-| `quantity` | string | ✅* | Number of shares (e.g. `"10"` or `"2.5"`). Required if `notional` is omitted. |
-| `notional` | string | ✅* | Dollar amount to invest (e.g. `"500.00"`). Required if `quantity` is omitted. Use for fractional/dollar-based orders. |
-| `limit_price` | string | Required for `limit` orders | Limit price (e.g. `"350.00"`) |
-| `stop_price` | string | Required for `stop` orders | Stop trigger price |
-| `trail_percent` | string | Required for `trailing_stop` | Trailing distance as a percentage |
-| `extended_hours` | boolean | | `true` to allow pre/after-market execution. Requires `type: limit` and `time_in_force: day`. |
-| `client_order_id` | string | Strongly recommended | Your unique idempotency key. Prevents duplicates on retry. |
+| `quantity` | string | ✅* | Number of shares. Decimal string (e.g. `"10"` or `"2.5"`). Required if `notional` is omitted. |
+| `notional` | string | ✅* | Dollar amount to invest (e.g. `"500.00"`). Required if `quantity` is omitted. |
+| `limit_price` | string | Required for `limit` orders | |
+| `time_in_force` | string | ✅ | `"day"`, `"gtc"`, `"opg"`, `"cls"`, `"ioc"`, or `"fok"` |
+| `extended_hours` | boolean | | `true` to allow pre/after-market execution. Requires `limit` + `day`. |
+| `client_order_id` | string | | Your unique idempotency key. Strongly recommended. |
 
-## Order status reference
+## Order examples
 
-| Status | User-facing message |
-|--------|-------------------|
-| `pending` | Submitting your order… |
-| `filled` | Order complete |
-| `partial` | Partially filled — waiting for remainder |
-| `cancelled` | Order cancelled |
-| `failed` | Order could not be placed |
+### Market order — buy by share quantity
 
-## Fractional shares
+```bash
+curl -X POST https://dev-tapp-api.tappengine.com/v1/accounts/ACCOUNT_ID/orders \
+  -H "X-API-Key: YOUR_API_KEY" -H "X-API-Secret: YOUR_API_SECRET" -H "Content-Type: application/json" \
+  -d '{ "symbol": "AAPL", "asset_class": "equity", "order_type": "market", "side": "buy", "quantity": "10", "time_in_force": "day", "client_order_id": "user-42-buy-aapl-20250601-001" }'
+```
 
-Use `notional` instead of `quantity` to place dollar-based orders. This enables fractional share purchases for any security — your user specifies how many dollars to invest, and Buildmarkets calculates the exact (potentially fractional) share quantity.
+### Market order — buy by dollar amount (notional)
+
+```bash
+curl -X POST .../orders -d '{ "symbol": "TSLA", "asset_class": "equity", "order_type": "market", "side": "buy", "notional": "250.00", "time_in_force": "day", "client_order_id": "user-42-buy-tsla-dollar-001" }'
+```
+
+### Limit order
+
+```bash
+curl -X POST .../orders -d '{ "symbol": "MSFT", "asset_class": "equity", "order_type": "limit", "side": "buy", "quantity": "5", "limit_price": "375.00", "time_in_force": "gtc", "client_order_id": "user-42-buy-msft-limit-001" }'
+```
+
+## Sample response
+
+All order creation requests return `201 Created` with the full order object:
 
 ```json
 {
-  "symbol": "AAPL",
-  "side": "buy",
-  "type": "market",
-  "time_in_force": "day",
-  "notional": "100.00"
+  "id": "ord-xyz789",
+  "client_order_id": "user-42-buy-aapl-20250601-001",
+  "account_id": "b3f2c9a1-4d5e-4a2f-8b3c-1e2d3f4a5b6c",
+  "symbol": "AAPL", "asset_class": "equity", "order_type": "market", "side": "buy",
+  "quantity": "10", "notional": null, "limit_price": null, "filled_qty": "0", "filled_avg_price": null,
+  "time_in_force": "day", "extended_hours": false, "status": "pending_new",
+  "created_at": "2025-06-01T14:30:00Z", "updated_at": "2025-06-01T14:30:00Z",
+  "filled_at": null, "canceled_at": null, "expired_at": null
 }
 ```
 
+## List orders — `GET /v1/accounts/{accountId}/orders`
+
+Returns all orders for the account. Supports filtering by status and date.
+
+```bash
+curl "https://dev-tapp-api.tappengine.com/v1/accounts/ACCOUNT_ID/orders?status=filled" -H "X-API-Key: YOUR_API_KEY" -H "X-API-Secret: YOUR_API_SECRET"
+```
+
+## Get order details — `GET /v1/accounts/{accountId}/orders/{orderId}`
+
+## Modify an open order — `PATCH /v1/accounts/{accountId}/orders/{orderId}`
+
+You can modify the `limit_price` or `quantity` of an order that is in `new` or `partially_filled` status. Modifying results in a replace operation — the original order is cancelled and a new order is submitted with the updated parameters.
+
+```bash
+curl -X PATCH .../orders/ord-xyz789 -d '{ "limit_price": "370.00", "quantity": "8" }'
+```
+
+> ⚠️ You cannot modify `symbol`, `side`, `order_type`, or `time_in_force`. Cancel and replace with a new order instead.
+
+## Cancel an order — `DELETE /v1/accounts/{accountId}/orders/{orderId}`
+
+Cancels an open order. The order must be in `new` or `partially_filled` status. Returns `204 No Content`. Cancellations are not guaranteed — if the order fills before the cancel reaches the market, you will receive an `INVALID_ORDER_STATE` error and the order will appear as `filled`.
+
+## Get execution reports (fills) — `GET /v1/accounts/{accountId}/orders/{orderId}/executions`
+
+Returns individual fill reports. Large orders may fill in multiple partial executions at different prices.
+
+```json
+[
+  { "execution_id": "exec-001", "order_id": "ord-xyz789", "symbol": "AAPL", "side": "buy", "quantity": "6", "price": "181.75", "executed_at": "2025-06-01T14:30:02Z" },
+  { "execution_id": "exec-002", "order_id": "ord-xyz789", "symbol": "AAPL", "side": "buy", "quantity": "4", "price": "181.80", "executed_at": "2025-06-01T14:30:02Z" }
+]
+```
+
+The VWAP fill price for the order is the volume-weighted average of all execution prices — reflected in `filled_avg_price` on the order object.
+
+## Tracking orders and idempotency
+
+If your order request times out, do not blindly retry without first checking whether the order was created — query `GET /v1/accounts/{accountId}/orders` and search for your `client_order_id`. Subscribe to `order.updated` and `order.filled` webhook events rather than polling.
+
+### Order state transitions you should handle in your UI
+
+| Event | User message |
+|-------|--------------|
+| `pending_new` | "Submitting your order…" |
+| `new` | "Order placed and working" |
+| `partially_filled` | "Order partially filled (N of M shares)" |
+| `filled` | "Order complete" |
+| `canceled` | "Order cancelled" |
+| `rejected` | "Order could not be placed — `{reason}`" |
+| `expired` | "Order expired unfilled" |
+
 ## Common order errors
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `INSUFFICIENT_BUYING_POWER` | Not enough settled cash to cover the order | Reduce quantity or wait for a deposit to settle |
-| `SYMBOL_NOT_TRADABLE` | Symbol is not available for trading on this account | Verify the symbol via the assets API |
-| `MARKET_CLOSED` | Market is closed and `extended_hours` is false | Enable extended hours with a limit order, or wait for market open |
-| `DUPLICATE_CLIENT_ORDER_ID` | A `client_order_id` was reused | Generate a new unique ID for each order |
-| `ACCOUNT_NOT_ACTIVE` | Investor account is not in `active` status | Ensure KYC has completed before placing orders |
-
-## Webhook events
-
-| Event | Fired when |
-|-------|------------|
-| `order.updated` | Order status changed |
-| `order.filled` | Order fully executed |
-| `order.cancelled` | Order cancelled successfully |
-| `order.failed` | Order rejected or failed |
+| Error code | Description | Fix |
+|-----------|-------------|-----|
+| `INSUFFICIENT_BUYING_POWER` | Not enough cash to cover the order | Reduce quantity or wait for a deposit to settle |
+| `SYMBOL_NOT_TRADABLE` | Symbol is not available for trading | Verify the symbol via Market Data reference endpoints |
+| `MARKET_CLOSED` | Market is closed and extended_hours is false | Use `extended_hours: true` with a limit order, or wait for market open |
+| `DUPLICATE_CLIENT_ORDER_ID` | A `client_order_id` was reused | Use a new unique ID per order |
+| `INVALID_ORDER_STATE` | Tried to modify or cancel an order in a terminal state | Check order status before attempting modification |
+| `ACCOUNT_NOT_ACTIVE` | Account is not in ACTIVE status | Ensure KYC has completed and account is ACTIVE |
 
 ## Next steps
 
-<CardGroup cols={2}>
-  <Card title="Positions & Portfolio" href="/guides/self-directed/positions-portfolio">
-    View the investor's holdings and P&L after orders fill.
-  </Card>
-  <Card title="Deposits & Withdrawals" href="/guides/self-directed/deposits-withdrawals">
-    Fund the account before placing orders.
-  </Card>
-</CardGroup>
+- Account Activities — View the full transaction and activity history
+- Webhooks Overview — Real-time order fill notifications
+- Funding Overview — Deposit cash before trading

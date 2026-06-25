@@ -1,99 +1,72 @@
 ---
-title: "Buildmarkets: Brokerage & Wealth Management API"
+title: "Build with Buildmarkets"
 sidebarTitle: "Home"
-description: "Embed compliant brokerage accounts, equity trading, ACH funding, and market data into your product through a single unified API."
+description: "White-label wealth management and brokerage infrastructure. Accounts, KYC, equity and ETF trading, ACH funding, market data, and documents — through a single API."
+mode: "custom"
 ---
 
-Buildmarkets gives fintech companies and financial institutions a single REST API to embed brokerage accounts, KYC verification, equity and ETF trading, ACH funding, market data, and document management into their own products — backed by a FINRA-registered broker-dealer and SEC-registered RIA.
+<div className="landing-hero">
+  <h1>Build with Buildmarkets</h1>
+  <p>White-label wealth management and brokerage infrastructure for financial institutions. Accounts, KYC, trading, ACH funding, market data, and documents — through a single unified API.</p>
+  <a className="landing-cta" href="/get-started/welcome">Get started →</a>
+</div>
 
-## Choose your integration path
+<div className="landing-content">
+
+<h2 className="landing-h2">Choose your integration path</h2>
 
 <CardGroup cols={2}>
   <Card title="Self-Directed Investing" icon="chart-line" href="/get-started/quick-start-self-directed">
-    Let your users open brokerage accounts, fund them via ACH, and trade stocks and ETFs. You control the UI — Buildmarkets handles compliance, custody, and order routing.
+    Let your users buy and sell stocks, ETFs, and fractional shares. You control the UI — Buildmarkets handles accounts, KYC, custody, and order routing.
+
+    **Best for:** Trading apps, invest tabs, stock gifting, round-ups.
   </Card>
-  <Card title="Wealth Management" icon="chart-pie" href="/get-started/quick-start-wealth">
+  <Card title="Wealth Management" icon="chart-pie" href="/wealth">
     Power advisor-managed and robo-advisory accounts with API-driven portfolio construction and rebalancing. Full wealth lifecycle through the API.
+
+    **Best for:** Robo-advisors, financial planner apps, employee benefits.
   </Card>
 </CardGroup>
 
-## Get up and running
-
-<Steps>
-  <Step title="Get your API credentials">
-    Log into the Buildmarkets Partner Dashboard, navigate to **Settings → API Keys**, and generate a key pair. You'll use your `X-API-Key` and `X-API-Secret` headers on every request.
-  </Step>
-  <Step title="Test in the sandbox">
-    Point your requests at `https://dev-tapp-api.tappengine.com`. The sandbox supports every endpoint production does — with simulated KYC, order fills, and funding transfers so no real money moves.
-  </Step>
-  <Step title="Follow the quickstart">
-    Walk through creating an investor account, submitting KYC, linking a bank, and placing your first order in under 15 minutes.
-  </Step>
-  <Step title="Go live">
-    Switch your base URL to `https://api.tappengine.com`, complete the partner checklist, and start serving real customers.
-  </Step>
-</Steps>
-
-## Explore the platform
+<h2 className="landing-h2">Explore the platform</h2>
 
 <CardGroup cols={3}>
-  <Card title="Platform Overview" icon="layer-group" href="/platform/overview">
-    Core concepts, data model, and API conventions every integrator needs.
+  <Card title="Quick Start" icon="rocket" href="/get-started/welcome">
+    Get your first API call working in under 10 minutes.
   </Card>
-  <Card title="Authentication" icon="key" href="/platform/authentication">
-    Generate API key pairs, assign scopes, and follow security best practices.
+  <Card title="Platform Concepts" icon="layer-group" href="/platform/overview">
+    Understand accounts, balances, trading, and compliance.
   </Card>
-  <Card title="Accounts & KYC" icon="user-check" href="/platform/accounts">
-    Open brokerage accounts and run identity verification for your end users.
-  </Card>
-  <Card title="Trading" icon="bolt" href="/platform/trading">
-    Place market, limit, stop, and stop-limit orders for equities and ETFs.
-  </Card>
-  <Card title="Funding" icon="building-columns" href="/platform/funding">
-    Link external bank accounts via Plaid and move money in and out via ACH.
+  <Card title="Guides" icon="map" href="/guides/overview">
+    Step-by-step integration guides for every workflow.
   </Card>
   <Card title="Webhooks" icon="webhook" href="/platform/webhooks">
-    Receive real-time event notifications for orders, accounts, and funding activity.
+    Real-time event notifications for account, trading, and funding activity.
+  </Card>
+  <Card title="FIX Gateway" icon="bolt" href="/fix-gateway/fix-gateway-overview">
+    FIX 4.4 order management for partners with their own OMS or algorithmic trading infrastructure.
+  </Card>
+  <Card title="Changelog" icon="clock-rotate-left" href="/changelog">
+    Latest API updates, new features, and deprecations.
   </Card>
 </CardGroup>
 
-## Step-by-step guides
-
-<CardGroup cols={2}>
-  <Card title="Account Onboarding" icon="id-card" href="/guides/self-directed/account-onboarding">
-    Walk through collecting KYC data and opening a brokerage account end to end.
-  </Card>
-  <Card title="Bank Linking & Funding" icon="link" href="/guides/self-directed/bank-linking">
-    Connect a user's external bank and initiate their first deposit.
-  </Card>
-  <Card title="Placing Orders" icon="arrow-up-right" href="/guides/self-directed/placing-orders">
-    Submit equity and ETF orders and handle the full order lifecycle.
-  </Card>
-  <Card title="Market Data" icon="chart-mixed" href="/guides/operations/market-data">
-    Fetch real-time quotes, historical bars, and asset fundamentals.
-  </Card>
-</CardGroup>
-
-## Institutional trading
-
-<Card title="FIX 4.4 Gateway" icon="network-wired" href="/fix-gateway/fix-gateway-overview">
-  Connect your OMS or algorithmic trading infrastructure directly via the Buildmarkets FIX 4.4 gateway for institutional-grade, low-latency order routing.
-</Card>
-
-## Developer resources
+<h2 className="landing-h2">Developer resources</h2>
 
 <CardGroup cols={3}>
-  <Card title="API Reference" icon="code" href="/api-reference/introduction">
-    Full OpenAPI reference with interactive request playground.
-  </Card>
   <Card title="Postman Collection" icon="cloud" href="/resources/postman">
-    Pre-built requests for every endpoint — import and start calling the API immediately.
+    Pre-built requests for every endpoint.
   </Card>
-  <Card title="Error Codes" icon="triangle-exclamation" href="/resources/error-codes">
-    Complete catalog of Buildmarkets error codes and how to handle each one.
+  <Card title="Error Reference" icon="triangle-exclamation" href="/resources/error-codes">
+    Full catalog of error codes and troubleshooting.
+  </Card>
+  <Card title="AI-Assisted Development" icon="robot" href="/resources/ai-tools">
+    Integrate with Claude Code, Cursor, or Windsurf.
   </Card>
 </CardGroup>
 
 <Note>
-  **New to Buildmarkets?** Start with the [welcome guide](/get-started/welcome) for an overview of the platform architecture and how to make your first authenticated API call.
+  **Ready to get started?** Log into the Buildmarkets Partner Dashboard to generate your API credentials, then build and test against the sandbox environment first.
 </Note>
+
+</div>

@@ -1,128 +1,33 @@
 ---
-title: "Investor Wallets: Cash Balances and Portfolio Value"
+title: "Wallets"
 sidebarTitle: "Wallets"
-description: "Access investor wallet data including cash balances, buying power, portfolio value, and transaction history through the Buildmarkets wallets API."
+description: "Retrieve account balances and positions once an account is ACTIVE, including buying power, equity, settlement timing, and field definitions."
 ---
 
-Every investor account has one or more **wallets** — currency-denominated accounts that hold cash balances and reflect the investor's brokerage account state. Wallets are your primary source of truth for what an investor can spend, withdraw, or has invested. Use wallet data to build portfolio dashboards, validate buying power before showing order confirmation screens, and display cash and equity summaries.
+## Overview
 
-Wallets become meaningful once an investor reaches `active` status. Before that, balance fields return `"0"`.
+Describes how to retrieve account financial data once an account reaches `ACTIVE` status. These endpoints support portfolio dashboards, buying-power validation, and position management interfaces.
 
-## Retrieve an investor's wallets
+## Key Endpoints
 
-```bash
-curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/wallets \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
+**Get Account Balances** — `GET /v1/accounts/{accountId}/balances` — Returns current cash and equity information.
 
-**Example response:**
+**List All Open Positions** — `GET /v1/accounts/{accountId}/positions` — Returns securities with non-zero quantities.
 
-```json
-{
-  "object": "list",
-  "url": "/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/wallets",
-  "has_more": false,
-  "data": [
-    {
-      "id": "wlt_01j9x8m2k7qpzwv3t5r6y8n0cd",
-      "object": "wallet",
-      "created": 1747776000,
-      "livemode": false,
-      "currency": "USD",
-      "balance": "1500.00",
-      "available_balance": "1200.00",
-      "reserved_balance": "300.00",
-      "cash_withdrawable": "1000.00",
-      "buying_power": "5000.00",
-      "equity": "8500.00",
-      "status": "active"
-    }
-  ]
-}
-```
+**Get Single Position** — `GET /v1/accounts/{accountId}/positions/{symbol}` — Returns 404 if no position exists for that symbol.
 
-## Balance fields explained
+## Balance Field Definitions
 
-| Field | Description |
-|---|---|
-| `balance` | Total wallet balance: `available_balance` + `reserved_balance` |
-| `available_balance` | Cash available for new purchases or withdrawals |
-| `reserved_balance` | Cash held against pending orders or in-flight transfers |
-| `cash_withdrawable` | Amount eligible to withdraw back to a bank account |
-| `buying_power` | Total purchasing power including any margin or unsettled proceeds available for trading |
-| `equity` | Total value of the investor's portfolio holdings (positions) as reported by the custodian |
+The response includes: total cash, settled/unsettled cash components, buying power, equity value, long market value, previous close equity, portfolio value, and timestamp.
 
-<Note>
-  `buying_power` may exceed `available_balance` if the investor has a margin account or if unsettled sale proceeds are available for trading. `cash_withdrawable` is always less than or equal to `available_balance`.
-</Note>
+## Position Field Definitions
 
-## Wallet status
+Position data encompasses: ticker symbol, asset class, share quantity, average entry price, side (long), market value, cost basis, unrealized gain/loss in dollars and percentage, current price, prior day close, and intraday change metrics.
 
-| Status | Meaning |
-|---|---|
-| `active` | Wallet is operating normally |
-| `suspended` | Wallet is temporarily restricted |
-| `closed` | Wallet is closed along with the investor account |
+## Settlement Timing
 
-## Transaction history
+ACH deposits require 1–3 business days to settle in production (instant in sandbox). Equity sale proceeds settle T+1. Unsettled funds appear separately and don't count toward buying power.
 
-Use the transactions endpoint to retrieve the full cash activity history for an investor: deposits, withdrawals, trade settlements, dividends, fees, and other account activity.
+## Practical Recommendations
 
-```bash
-curl "https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/transactions?type=deposit&limit=25" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
-
-Filter transactions using these query parameters:
-
-| Parameter | Description |
-|---|---|
-| `type` | Filter by `deposit`, `withdrawal`, `buy`, `sell`, or `activity` |
-| `status` | Filter by `pending`, `processing`, `completed`, `failed`, etc. |
-| `currency` | Filter by 3-letter ISO currency code, e.g. `USD` |
-| `date_from` | ISO date lower bound, e.g. `2025-01-01` |
-| `date_to` | ISO date upper bound |
-| `limit` | Results per page (default 50, max 100) |
-| `offset` | Pagination offset |
-
-**Example transaction response:**
-
-```json
-{
-  "object": "list",
-  "has_more": false,
-  "data": [
-    {
-      "id": "txn_01j9x8m2k7qpzwv3t5r6y8n0gh",
-      "object": "transaction",
-      "type": "deposit",
-      "status": "completed",
-      "amount": "5000.00",
-      "currency": "USD",
-      "method": "ach",
-      "description": "Initial account funding",
-      "completed_at": "2025-06-02T14:20:00.000Z",
-      "failed_at": null,
-      "failure_reason": null
-    }
-  ]
-}
-```
-
-## Settlement timing
-
-Cash doesn't always become available immediately after a deposit or sale. Understand how settlement affects the balance fields:
-
-| Event | Settlement timing |
-|---|---|
-| ACH deposit | 1–3 business days in production (instant in sandbox) |
-| Equity sale proceeds | T+1 (next business day) |
-| Wire deposit | Same day once funds are received by the custodian |
-
-Unsettled funds appear in `balance` but are excluded from `cash_withdrawable` until they settle. Some unsettled proceeds may count toward `buying_power` depending on the account's trading type.
-
-<Tip>
-  Always check `buying_power` before presenting an order confirmation screen. Subtract the estimated order cost to confirm the investor has sufficient purchasing power, and surface a clear error state if they do not.
-</Tip>
+Combine balances and positions endpoints with market data services to build dashboards, and compare estimated order costs against available buying power before presenting confirmation screens.

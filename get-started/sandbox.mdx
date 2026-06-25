@@ -1,146 +1,109 @@
 ---
-title: "Test in the Buildmarkets Sandbox Before Going Live"
+title: "Sandbox Environment"
 sidebarTitle: "Sandbox"
-description: "The Buildmarkets sandbox mirrors every production endpoint with simulated KYC, orders, and funding. No real money moves — test safely before going live."
+description: "Core Buildmarkets concepts, data model, API conventions, and sandbox testing with SSN-suffix KYC outcomes and simulated fills and funding."
 ---
 
-The Buildmarkets sandbox is a full-fidelity replica of the production environment. Every endpoint, request shape, and response schema is identical — the only differences are that KYC is simulated using test SSN values, orders fill without touching real markets, and ACH transfers move no actual money. Build your entire integration in sandbox before you touch a single production credential.
+This page introduces the core concepts, data model, and conventions used throughout the Buildmarkets API. Reading this before diving into feature-specific guides will save you significant time.
 
-<Note>
-  All sandbox activity is completely isolated from production. Accounts, orders, deposits, and API keys created in sandbox have no effect on production data whatsoever.
-</Note>
+## Core concepts
 
-## Sandbox base URL
+### Partners
+
+You — the company integrating Buildmarkets. Partners authenticate with the API using key pairs (`X-API-Key` / `X-API-Secret`) scoped to their tenant. All accounts, orders, and funding activity created through your API keys are associated with your partner account.
+
+### Accounts
+
+A Buildmarkets **account** represents one end-user brokerage account. Each account holds an identity (KYC data: name, DOB, SSN), contact information (address, phone, email), regulatory disclosures and signed agreements, an investment profile (suitability data), and positions, balances, orders, and funding activity. Accounts are the central resource in the Buildmarkets Wealth API. Almost every other resource — orders, positions, funding — is scoped under `GET /v1/accounts/{accountId}/...`.
+
+### Orders
+
+An **order** is an instruction to buy or sell a security. Buildmarkets supports equity and ETF orders with market, limit, stop, and stop-limit order types. Orders go through a lifecycle of states and generate **executions** (fills) once matched.
+
+### ACH Relationships
+
+An **ACH relationship** links a customer's external bank account to their Buildmarkets brokerage account. It is a prerequisite for funding. Once linked, you can initiate deposits (money into the brokerage account) and withdrawals (money back to the bank).
+
+### Webhooks
+
+**Webhooks** are HTTP callbacks that Buildmarkets fires to your server when significant events occur — an account's KYC status changes, an order is filled, or a deposit settles. Webhooks are the recommended way to stay in sync with state changes rather than polling.
+
+## Data model overview
+
+Partner (you) holds API Keys (credentials) and Accounts[]. Each Account contains Contact, Identity, Disclosures, Agreements[], InvestmentProfile, TradingConfigurations, Balances, Positions[], Orders[] (each with Executions[]), ACH Relationships[], and Funding Activity[]. Webhooks are partner-level. Market Data is partner-level (not account-scoped). Documents are partner-level plus account-level uploads.
+
+## API conventions
+
+### REST & JSON
+
+The Buildmarkets API is a REST API. All request and response bodies are JSON. Set `Content-Type: application/json` on all requests with a body.
+
+### Authentication
+
+Every request must include two headers:
 
 ```
-https://dev-tapp-api.tappengine.com
+X-API-Key: <your-api-key>
+X-API-Secret: <your-api-secret>
 ```
 
-Use this as the base for every API call during development and QA. When you're ready to go live, swap this URL for the production base URL — no other changes to your code are required.
+See Authentication Overview for how to generate and manage API keys.
 
-## Authentication in sandbox
+### IDs
 
-Sandbox uses the same `X-API-Key` / `X-API-Secret` header authentication as production. Generate sandbox keys from **Settings → API Keys** in the Partner Dashboard, and clearly label them (e.g., `sandbox-dev`) so you never confuse them with production keys.
+* `accountId` — UUID string, e.g. `"b3f2c9a1-4d5e-4a2f-8b3c-1e2d3f4a5b6c"`
+* `orderId` — UUID string
+* `achId` — UUID string
+* `webhookId` — UUID string
 
-```bash
-curl https://dev-tapp-api.tappengine.com/v1/investors \
-  -H "X-API-Key: YOUR_SANDBOX_KEY" \
-  -H "X-API-Secret: YOUR_SANDBOX_SECRET"
+Always store and pass IDs as strings. Do not treat them as integers or attempt to sort them numerically.
+
+### Timestamps
+
+All timestamps are **ISO 8601** strings in UTC, e.g. `"2025-06-01T14:32:00Z"`. When submitting timestamps (e.g., `signed_at` on agreements), use this format.
+
+### Monetary amounts
+
+Dollar amounts (balances, order quantities, transfer amounts) are represented as **decimal strings**, not floating-point numbers. This avoids precision loss on monetary values.
+
+```json
+{ "amount": "1000.00" }
 ```
 
-## Simulated KYC outcomes
+### Pagination
 
-In sandbox, KYC is not submitted to a real identity verification provider. Instead, the outcome is determined entirely by the last four digits of the SSN you provide when creating an investor. This lets you test every compliance code path in your application without waiting for real verification results.
+List endpoints that return multiple records use **cursor-based pagination**. The response shape is:
 
-| SSN suffix | KYC outcome | Account status after check |
-|---|---|---|
-| `0001` | `APPROVED` | `active` — ready for funding and trading |
-| `0002` | `REJECTED` | `closed` — account is declined |
-| `0003` | `MANUAL_REVIEW` | `approval_pending` — account awaits manual review |
-
-**Example:** To create an investor who will be instantly approved, use any SSN ending in `0001`, such as `111-22-0001` or `987-65-0001`. The middle segments can be anything valid.
-
-```bash
-# This investor will be APPROVED
-curl -X POST https://dev-tapp-api.tappengine.com/v1/investors \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "account_type": "individual",
-    "management_type": "self_directed",
-    "first_name": "Test",
-    "last_name": "User",
-    "tax_id": "111-22-0001",
-    "tax_id_type": "SSN",
-    ...
-  }'
+```json
+{
+  "data": [...],
+  "pagination": {
+    "next_cursor": "eyJpZCI6IjEyMyJ9",
+    "has_more": true
+  }
+}
 ```
 
-Test all three outcomes in your application before going live. Your UI should handle rejected accounts gracefully and surface a clear message for accounts in manual review.
+Pass `cursor=<next_cursor>` as a query parameter to fetch the next page. Use `limit` to control page size.
 
-## Simulated order fills
+### Idempotency
 
-Orders placed in sandbox do not route to real markets. They fill automatically with simulated execution prices. You can use this to:
+For `POST` requests that initiate financial operations (orders, deposits, withdrawals), use the `client_order_id` or equivalent idempotency field to safely retry without duplicate execution.
 
-- Verify your order placement logic and `client_order_id` idempotency handling
-- Test your webhook handler for `order.filled` and `order.canceled` events
-- Confirm that positions update correctly after a fill
-- Exercise your rebalancing logic end-to-end
+## Sandbox testing
 
-All order types are supported in sandbox: `market`, `limit`, `stop`, `stop_limit`, and `trailing_stop`. Notional orders (using `notional` instead of `quantity`) also work as expected.
+In the sandbox environment (`https://dev-tapp-api.tappengine.com`), KYC outcomes are controlled by the SSN suffix you provide when creating an account:
 
-## Simulated ACH transfers
+| SSN suffix | Outcome |
+|------------|---------|
+| `0001` | `APPROVED` |
+| `0002` | `REJECTED` |
+| `0003` | `MANUAL_REVIEW` |
 
-ACH deposits and withdrawals in sandbox do not initiate real bank transfers. They immediately transition to a settled state so you can proceed with funding-dependent test scenarios without waiting for clearing windows.
+For example, SSN `111-22-0001` will result in an immediately approved account. All other sandbox behavior (order fills, funding transfers) is also simulated — no real money or real orders are involved.
 
-Use this to:
+## Next steps
 
-- Verify your deposit initiation flow and webhook handling for `transfer.deposit.completed`
-- Test the full end-to-end path from bank link → deposit → order placement → position check
-- Confirm your error handling for edge cases like insufficient balance on withdrawal
-
-## Sandbox vs production differences
-
-| Attribute | Sandbox | Production |
-|---|---|---|
-| **Base URL** | `https://dev-tapp-api.tappengine.com` | `https://api.tappengine.com` |
-| **KYC verification** | Simulated via SSN suffix | Real identity verification |
-| **Order routing** | Simulated fills, no real execution | Live order routing to markets |
-| **ACH settlement** | Immediate (no wait) | 1–3 business days |
-| **Real money** | Never — no real funds involved | Yes — real customer funds |
-| **API keys** | Sandbox-specific key pairs | Production-specific key pairs |
-| **Data isolation** | Fully isolated from production | Live data only |
-| **Rate limits** | Relaxed (suitable for load testing) | Production rate limits apply |
-
-## Switching from sandbox to production
-
-Switching environments requires only two changes:
-
-1. **Replace the base URL** — swap `https://dev-tapp-api.tappengine.com` with `https://api.tappengine.com`
-2. **Replace your API credentials** — use your production `X-API-Key` and `X-API-Secret`, not your sandbox keys
-
-No endpoint paths, request bodies, or response handling code needs to change. This is intentional — the sandbox is an exact structural mirror of production.
-
-```bash
-# Sandbox
-curl https://dev-tapp-api.tappengine.com/v1/investors \
-  -H "X-API-Key: SANDBOX_KEY" \
-  -H "X-API-Secret: SANDBOX_SECRET"
-
-# Production — only the URL and credentials change
-curl https://api.tappengine.com/v1/investors \
-  -H "X-API-Key: PRODUCTION_KEY" \
-  -H "X-API-Secret: PRODUCTION_SECRET"
-```
-
-<Warning>
-  Never use sandbox API keys in a production environment, and never send real customer data (real SSNs, real bank account numbers) to the sandbox URL. Keep the two environments entirely separate throughout your development and operations lifecycle.
-</Warning>
-
-## Recommended sandbox test scenarios
-
-Before requesting production access, cover these scenarios in sandbox:
-
-- Create an investor with SSN suffix `0001` → verify `active` status
-- Create an investor with SSN suffix `0002` → verify your UI handles rejection gracefully
-- Create an investor with SSN suffix `0003` → verify your UI surfaces a "pending review" state
-- Link a bank account via Plaid Link test credentials → verify `funding_source_id` is returned
-- Initiate a deposit → verify `transfer.deposit.completed` webhook fires
-- Place a market buy order → verify `order.filled` webhook fires and position appears
-- Place an order with the same `client_order_id` twice → verify only one order is created
-- Cancel an open order → verify status transitions to `cancelled`
-- Attempt an order with insufficient balance → verify your error handling for `400` responses
-
-Completing this checklist gives you high confidence that your integration will behave correctly in production.
-
-## What's next
-
-<CardGroup cols={2}>
-  <Card title="Self-Directed Quick Start" icon="chart-line" href="/get-started/quick-start-self-directed">
-    Walk through the full self-directed flow using sandbox endpoints.
-  </Card>
-  <Card title="Go Live" icon="rocket" href="/get-started/go-live">
-    Complete the pre-launch checklist and switch to production.
-  </Card>
-</CardGroup>
+* Getting Started — Step-by-step guide to your first API call
+* Authentication Overview — Generating and managing API keys
+* Use Cases — Common integration patterns

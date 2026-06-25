@@ -1,82 +1,33 @@
 ---
-title: "Deliver Account Documents to Investors via Email"
-sidebarTitle: "Email Documents"
-description: "Trigger email delivery of account statements, tax forms, and trade confirmations directly to investors using the Buildmarkets document email API."
+title: "Emailing Documents"
+sidebarTitle: "Emailing Documents"
+description: "How to deliver statements, tax forms, and trade confirmations to recipient inboxes using the documents email endpoint."
 ---
 
-The Buildmarkets Documents API includes a dedicated email delivery endpoint that sends any document directly to an investor's registered email address. Instead of building a separate notification or document-delivery pipeline, you can trigger a single API call after identifying the document you want to send — Buildmarkets handles the email composition and delivery on your behalf.
+The Buildmarkets documentation page explains how to deliver documents via email after retrieving them through the documents API.
 
-## When to use email delivery
+## Core Functionality
 
-Email delivery is appropriate in several common scenarios:
+The platform offers a `POST /v1/documents/email` endpoint that enables sending documents directly to recipient inboxes. As described in the guide, this feature allows users to request statements, tax forms, or trade confirmations "without building a separate delivery pipeline."
 
-- **End-of-month statements** — After monthly statements are generated, iterate over active investors and call the email endpoint for each new `account_statement` document.
-- **Tax season** — When 1099s and other annual tax forms are available, trigger delivery in batch so investors receive their documents directly in their inbox.
-- **Trade confirmations on demand** — Allow investors to request a re-delivery of a specific confirmation from within your app.
-- **On-demand document access** — Any time an investor requests a document be sent to them, call this endpoint instead of building a file-transfer flow.
+## Request Parameters
 
-## Email a document
+The endpoint accepts two fields:
+- **documentUrl** (required): An HTTPS URL from the `/v1/documents/list` response
+- **email** (optional): Recipient address; if omitted, the system uses the account holder's registered email
 
-Send a `POST` request to `/v1/documents/{document_id}/email` to deliver the document to the investor's email address on file. You do not need to specify the recipient — the system looks up the email address associated with the document's owner.
+## Response Structure
 
-```bash
-curl -X POST https://dev-tapp-api.tappengine.com/v1/documents/doc_01j9x8m2k7qpzwv3t5r6y8n0ab/email \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
+Successful requests return a response object containing a `successful` boolean and an optional `message` field confirming dispatch or describing errors.
 
-<ParamField path="document_id" type="string" required>
-  The prefixed document identifier (e.g. `doc_…`) for the document you want to deliver. Retrieve this from the list or get endpoints.
-</ParamField>
+## Error Handling
 
-**Example successful response:**
+The documentation identifies several potential failure scenarios:
+- Invalid or malformed URLs trigger an `INVALID_DOCUMENT_URL` error
+- Improperly formatted email addresses generate an `INVALID_EMAIL` response
+- Missing or invalid API credentials result in `UNAUTHORIZED` status
+- Server-side processing failures return an `INTERNAL_ERROR`
 
-```json
-{
-  "successful": true,
-  "message": "Document delivered to investor email on file."
-}
-```
+## Integration Context
 
-<ResponseField name="successful" type="boolean">
-  `true` when the email was accepted for delivery. `false` when delivery could not be initiated — check the `message` field for details.
-</ResponseField>
-
-<ResponseField name="message" type="string">
-  Human-readable status message confirming dispatch or describing the error.
-</ResponseField>
-
-## Error handling
-
-The following error conditions can occur when calling the email endpoint:
-
-| Error | Description |
-|---|---|
-| `UNAUTHORIZED` | Missing or invalid `X-API-Key` / `X-API-Secret` headers. |
-| `NOT_FOUND` | The `document_id` does not exist or does not belong to your tenant. |
-| `INVALID_EMAIL` | The investor's account does not have a valid email address on file. |
-| `INTERNAL_ERROR` | A server-side error prevented email dispatch. Retry with exponential backoff. |
-
-## Batch delivery pattern
-
-When delivering documents to multiple investors — for example, during monthly statement distribution — fetch each investor's relevant documents using the list endpoint filtered by `purpose=ACCOUNT_STATEMENT`, then call the email endpoint for each document in sequence. Respect the API rate limits (10 requests/second on sandbox, 25 requests/second on production) to avoid `429` responses.
-
-```bash
-# 1. List the latest account statements for an investor
-curl https://dev-tapp-api.tappengine.com/v1/documents \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET" \
-  -G \
-  --data-urlencode "investor_id=inv_01j9x8m2k7qpzwv3t5r6y8n0ab" \
-  --data-urlencode "purpose=ACCOUNT_STATEMENT" \
-  --data-urlencode "limit=1"
-
-# 2. Email the most recent statement using its document_id
-curl -X POST https://dev-tapp-api.tappengine.com/v1/documents/doc_01j9x8m2k7qpzwv3t5r6y8n0ab/email \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
-
-<Note>
-  The email is sent to the investor's registered email address — you cannot override the recipient in the request body. Before triggering delivery, confirm that the investor's `email` field is current by checking their profile via `GET /v1/investors/{investor_id}`. If the address is outdated, update it first to ensure the document reaches the right inbox.
-</Note>
+This endpoint operates within the Documents section of Buildmarkets Wealth, complementing related functionality for retrieving, uploading, and requesting documents.

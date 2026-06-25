@@ -1,49 +1,60 @@
 ---
-title: "Authenticate API Requests with Buildmarkets API Keys"
+title: "Authentication"
 sidebarTitle: "Authentication"
-description: "Buildmarkets uses X-API-Key and X-API-Secret header pairs. Learn how to generate, scope, and revoke keys — and follow security best practices."
+description: "How Buildmarkets API key authentication works, including generating, listing, and revoking scoped key pairs and security best practices."
 ---
 
-Every request to the Buildmarkets API must include a valid API key pair. There are no sessions, cookies, or OAuth flows — each request is independently authenticated by two HTTP headers that identify your partner tenant and authorize the action being performed.
+The Buildmarkets API uses **API key authentication**. Every request must include a valid key pair. This page explains how authentication works, how to generate and manage keys, and security best practices.
 
-## Required headers
+## How authentication works
 
-Include both headers on every request:
+Every Buildmarkets API request requires two HTTP headers:
 
-```bash
-curl https://dev-tapp-api.tappengine.com/v1/investors \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
+```
+X-API-Key: <your-api-key>
+X-API-Secret: <your-api-secret>
 ```
 
-If either header is missing, invalid, or belongs to a revoked key, the API returns `401 Unauthorized`. If the key is valid but lacks the required scope for the endpoint, the API returns `403 Forbidden`.
+Both values are required on every request. There is no session token or cookie mechanism — each request is independently authenticated.
 
-## Key scopes
+**Example request:**
 
-When you generate a key, you assign it one or more **scopes** that control exactly which endpoints it can call. Follow the principle of least privilege: assign only the scopes your service actually needs.
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/accounts \
+  -H "X-API-Key: bm_key_abc123" \
+  -H "X-API-Secret: bm_secret_xyz789"
+```
+
+## API key scopes
+
+When generating an API key, you assign it one or more **scopes** that control which endpoints it can access. This follows the principle of least privilege.
 
 | Scope | Access granted |
-|---|---|
-| `accounts:read` | Read investor details, balances, and positions |
-| `accounts:write` | Create, update, and close investor accounts |
-| `funding:read` | List funding sources and view deposit/withdrawal history |
-| `funding:write` | Connect funding sources, initiate deposits and withdrawals |
+|-------|----------------|
+| `accounts:read` | Read account details, balances, positions |
+| `accounts:write` | Create, update, and close accounts |
+| `funding:read` | Read ACH relationships and funding activity |
+| `funding:write` | Create ACH relationships, initiate deposits and withdrawals |
 | `trading:read` | Read orders and executions |
 | `trading:write` | Place, modify, and cancel orders |
-| `marketdata:read` | Access asset search, quotes, and market data endpoints |
-| `documents:read` | List and retrieve account documents |
-| `documents:write` | Upload compliance documents |
+| `marketdata:read` | Access market data endpoints |
+| `documents:read` | List and retrieve documents |
+| `documents:write` | Upload and email documents |
 | `webhooks:read` | List webhook configurations |
 | `webhooks:write` | Create, update, and delete webhooks |
-| `keys:manage` | Generate and revoke API keys programmatically |
+| `keys:manage` | Generate and revoke API keys |
 
-## Generate keys via the dashboard
+> **Important:** "Assign only the scopes your application needs. A compromised key with narrow scopes limits your exposure."
 
-Log into the Buildmarkets Partner Dashboard, navigate to **Settings → API Keys**, and click **+ Generate Key**. Give the key a descriptive label — for example, `backend-prod` or `sandbox-integration-test` — and select the scopes it needs.
+## Generating API keys
 
-## Generate keys via the API
+### Via the Partner Dashboard
 
-If you have an existing key with the `keys:manage` scope, you can generate new keys programmatically:
+Log into the Buildmarkets Partner Dashboard, navigate to **Settings → API Keys**, and click **+ Generate Key**. Give the key a descriptive label (e.g., `"production-backend"` or `"sandbox-frontend"`) and select the required scopes.
+
+### Via the API
+
+You can also generate keys programmatically using an existing key that has the `keys:manage` scope:
 
 ```bash
 curl -X POST https://dev-tapp-api.tappengine.com/v1/keys \
@@ -52,7 +63,7 @@ curl -X POST https://dev-tapp-api.tappengine.com/v1/keys \
   -H "Content-Type: application/json" \
   -d '{
     "label": "backend-service-prod",
-    "scopes": ["accounts:read", "accounts:write", "trading:write", "marketdata:read"]
+    "scopes": ["accounts:read", "trading:write", "marketdata:read"]
   }'
 ```
 
@@ -60,22 +71,20 @@ curl -X POST https://dev-tapp-api.tappengine.com/v1/keys \
 
 ```json
 {
-  "id": "key_01j9x8m2k7qpzwv3t5r6y8n0ab",
+  "id": "key-001",
   "label": "backend-service-prod",
-  "api_key": "bm_key_abc123xyz",
-  "api_secret": "bm_secret_xyz789abc",
-  "scopes": ["accounts:read", "accounts:write", "trading:write", "marketdata:read"],
-  "created_at": "2025-06-01T12:00:00.000Z"
+  "api_key": "bm_key_abc123",
+  "api_secret": "bm_secret_xyz789",
+  "scopes": ["accounts:read", "trading:write", "marketdata:read"],
+  "created_at": "2025-06-01T12:00:00Z"
 }
 ```
 
-<Warning>
-  The `api_secret` is only returned once — at creation time. Store it immediately in a secrets manager (such as AWS Secrets Manager, GCP Secret Manager, or HashiCorp Vault). It cannot be retrieved again. If you lose it, revoke the key and generate a new one.
-</Warning>
+> **Security note:** "The `api_secret` is only returned once at creation time. Store it immediately in a secrets manager (e.g., AWS Secrets Manager, HashiCorp Vault). It cannot be retrieved again — if lost, revoke the key and generate a new one."
 
-## List your API keys
+## Listing API keys
 
-Retrieve metadata for all keys on your partner account. Secret values are never included in list responses.
+Retrieve all keys associated with your partner account:
 
 ```bash
 curl https://dev-tapp-api.tappengine.com/v1/keys \
@@ -83,33 +92,36 @@ curl https://dev-tapp-api.tappengine.com/v1/keys \
   -H "X-API-Secret: YOUR_API_SECRET"
 ```
 
-## Revoke a key
+The response lists key metadata (ID, label, scopes, creation date) but **never** includes the secret value.
 
-Revoke a key that is no longer needed or that you suspect has been compromised:
+## Revoking API keys
+
+Revoke a key that is no longer needed or may be compromised:
 
 ```bash
-curl -X DELETE https://dev-tapp-api.tappengine.com/v1/keys/KEY_ID \
+curl -X DELETE https://dev-tapp-api.tappengine.com/v1/keys/{keyId} \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "X-API-Secret: YOUR_API_SECRET"
 ```
 
-Returns `204 No Content` on success. Revocation is immediate — any subsequent request using the revoked key returns `401 Unauthorized`.
-
-## Error responses
-
-| HTTP status | Meaning |
-|---|---|
-| `401 Unauthorized` | Missing, invalid, or revoked `X-API-Key` or `X-API-Secret` |
-| `403 Forbidden` | Key is valid but lacks the required scope for this endpoint |
+Returns `204 No Content` on success. Revoked keys are immediately invalidated — any in-flight requests using the revoked key will fail with `401 Unauthorized`.
 
 ## Security best practices
 
 | Practice | Guidance |
-|---|---|
-| **Never expose keys client-side** | Use API keys only in server-side code. Never embed them in mobile app bundles, browser JavaScript, or public repositories. |
-| **Use separate keys per environment** | Maintain distinct key pairs for sandbox and production. A sandbox key should never be used against the production URL. |
-| **Rotate keys regularly** | Generate a replacement key, update your service configuration, then revoke the old key. Aim to rotate at least every 90 days. |
-| **Scope keys minimally** | A backend service that only places orders should have `trading:write` — not `accounts:write` or `keys:manage`. |
-| **Store secrets securely** | Use a dedicated secrets manager. Do not store secrets in `.env` files committed to source control or in plaintext configuration. |
-| **Monitor for anomalies** | Review API key activity in the Partner Dashboard. Set up alerts on unexpected request volume spikes or error-rate increases. |
-| **Revoke immediately on compromise** | If a key is accidentally exposed in a log, a repository, or a deployment, revoke it before doing anything else. |
+|----------|----------|
+| **Never expose keys client-side** | API keys should only be used in server-side code. Never include them in mobile app bundles, browser JavaScript, or public repositories. |
+| **Use separate keys per environment** | Use distinct key pairs for sandbox and production. |
+| **Rotate keys regularly** | Generate a new key, update your application config, then revoke the old key. |
+| **Scope keys minimally** | Only request the scopes your specific service requires. |
+| **Store secrets securely** | Use a secrets manager, not environment variable files checked into source control. |
+| **Monitor for anomalies** | Review your API key usage in the Partner Dashboard. Alert on unexpected spikes. |
+
+## Error responses
+
+| HTTP status | Meaning |
+|-------------|---------|
+| `401 Unauthorized` | Missing, invalid, or revoked API key/secret |
+| `403 Forbidden` | Key is valid but lacks the required scope for this endpoint |
+
+See Error Codes for the full list of API error responses.

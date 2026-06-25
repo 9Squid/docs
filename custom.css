@@ -1,0 +1,189 @@
+/* ==========================================================================
+   Buildmarkets Docs — Custom Styles
+   Design tokens sourced from Figma Style Guide (Buildmarkets - Website)
+   
+   Color Tokens:
+   --bm-content-primary:    #0F0E0F   (Content/Primary)
+   --bm-content-secondary:  #514F4C   (Content/Secondary)
+   --bm-content-accent:     #E0FE66   (Content/Accent — lime)
+   --bm-content-disabled:   #B8C3CC   (Content/Disabled)
+   --bm-content-error:      #EE1624   (Content/Error)
+
+   --bm-bg-surface1:        #F9F9F9   (Background/Surface+1)
+   --bm-bg-surface2:        #F2F7FF   (Background/Surface+2)
+   --bm-bg-dark:            #231E23   (Background/Surface Dark)
+   --bm-bg-white:           #FFFFFF   (Background/White)
+
+   --bm-action-default:     #E0FE66   (Action/Primary/Default)
+   --bm-action-hover:       #ABDB07   (Action/Primary/Hover)
+   --bm-action-active:      #638506   (Action/Primary/Active)
+   --bm-action-disabled:    #F6FFC7   (Action/Primary/Disabled)
+
+   --bm-border-default:     #D7D8DE   (Border/Default)
+   --bm-border-hover:       #BBBECE   (Border/Hover)
+
+   --bm-subtle-default:     #ECECEF   (Background/Subtle/Default)
+   --bm-subtle-hover:       #E1E1E6   (Background/Subtle/Hover)
+   --bm-subtle-active:      #DADAE0   (Background/Subtle/Active)
+
+   Typography:
+   Heading font: Gelasio (serif)
+   Body font:    Geist (sans-serif)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   CSS custom properties — available everywhere
+   -------------------------------------------------------------------------- */
+:root {
+  /* Content */
+  --bm-content-primary:   #0F0E0F;
+  --bm-content-secondary: #514F4C;
+  --bm-content-accent:    #E0FE66;
+  --bm-content-disabled:  #B8C3CC;
+  --bm-content-error:     #EE1624;
+  --bm-content-white:     #FFFFFF;
+
+  /* Background */
+  --bm-bg-surface1:       #F9F9F9;
+  --bm-bg-surface2:       #F2F7FF;
+  --bm-bg-dark:           #231E23;
+  --bm-bg-white:          #FFFFFF;
+  --bm-bg-accent:         #E0FE66;
+
+  /* Action Primary */
+  --bm-action-default:    #E0FE66;
+  --bm-action-hover:      #ABDB07;
+  --bm-action-active:     #638506;
+  --bm-action-disabled:   #F6FFC7;
+
+  /* Border */
+  --bm-border-default:    #D7D8DE;
+  --bm-border-hover:      #BBBECE;
+
+  /* Subtle */
+  --bm-subtle-default:    #ECECEF;
+  --bm-subtle-hover:      #E1E1E6;
+  --bm-subtle-active:     #DADAE0;
+
+  /* Brand blue (Mintlify primary, logo, links) */
+  --bm-blue-primary:      #3E5FFE;
+  --bm-blue-light:        #8D98FF;
+  --bm-blue-dark:         #3549A3;
+}
+
+/* --------------------------------------------------------------------------
+   Home / landing page — rendered with mode: custom
+   ========================================================================== */
+
+/* Hero section — full-width banner */
+.landing-hero {
+  text-align: center;
+  padding: 5rem 1.5rem 3.5rem;
+  background: linear-gradient(180deg, var(--bm-bg-surface1) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+.dark .landing-hero {
+  background: linear-gradient(
+    180deg,
+    rgba(224, 254, 102, 0.07) 0%,   /* lime tint on dark */
+    rgba(35, 30, 35, 0) 100%         /* Surface Dark fade */
+  );
+}
+
+/* Hero heading — Gelasio serif, large */
+.landing-hero h1 {
+  font-family: "Gelasio", Georgia, "Times New Roman", serif;
+  font-size: 3.75rem;
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 1.5rem;
+  color: var(--bm-content-primary);
+}
+
+.dark .landing-hero h1 {
+  color: var(--bm-content-white);
+}
+
+/* Hero subtitle paragraph */
+.landing-hero p {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  max-width: 640px;
+  margin: 0 auto 2.25rem;
+  color: var(--bm-content-secondary);
+}
+
+.dark .landing-hero p {
+  color: #B4AEB4; /* Content/Secondary Dark from Figma */
+}
+
+/* --------------------------------------------------------------------------
+   Primary CTA button — Figma Action/Primary/Default (#E0FE66)
+   -------------------------------------------------------------------------- */
+.landing-cta {
+  display: inline-block;
+  background: var(--bm-action-default);
+  color: var(--bm-content-primary) !important;  /* #0F0E0F — Figma spec */
+  font-family: "Geist", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1.0625rem;
+  line-height: 1;
+  padding: 0.9rem 1.9rem;
+  border-radius: 10px;                          /* Figma button border-radius */
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(224, 254, 102, 0.25);
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.landing-cta:hover {
+  background: var(--bm-action-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px rgba(171, 219, 7, 0.30);
+}
+
+.landing-cta:active {
+  background: var(--bm-action-active);
+  transform: translateY(0);
+}
+
+/* --------------------------------------------------------------------------
+   Content sections beneath the hero
+   -------------------------------------------------------------------------- */
+.landing-content {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 4rem;
+}
+
+/* Section headings — scoped so they don't affect Card titles */
+.landing-h2 {
+  font-family: "Gelasio", Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  font-size: 1.875rem;
+  letter-spacing: -0.01em;
+  margin: 2.5rem 0 1.25rem;
+  color: var(--bm-content-primary);
+}
+
+.dark .landing-h2 {
+  color: var(--bm-content-white);
+}
+
+.landing-h2:first-child {
+  margin-top: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Global accent overrides — lime highlight for active nav, code, etc.
+   -------------------------------------------------------------------------- */
+
+/* Override Mintlify's default blue selection with our lime accent on focus rings */
+:focus-visible {
+  outline-color: var(--bm-action-default);
+}
+
+/* Subtle lime underline on landing anchor hover (not the CTA) */
+.landing-content a:not(.landing-cta):hover {
+  text-decoration-color: var(--bm-action-default);
+}

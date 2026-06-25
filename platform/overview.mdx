@@ -1,102 +1,70 @@
 ---
-title: "Buildmarkets Platform: Core Concepts and Data Model"
+title: "Platform Overview"
 sidebarTitle: "Overview"
-description: "Learn the Buildmarkets data model — partners, investors, orders, and wallets — plus API conventions for amounts, timestamps, and pagination."
+description: "Core concepts, data model, conventions, and platform architecture of the Buildmarkets white-label brokerage API."
 ---
 
-Buildmarkets is a white-label brokerage and wealth management infrastructure API. Before diving into feature-specific guides, take a few minutes to understand the core data model and the conventions the API uses throughout — it will make every subsequent integration step faster and more predictable.
+This page introduces the core concepts, data model, and conventions used throughout the Buildmarkets API. Reading this before diving into feature-specific guides will save you significant time.
 
 ## Core concepts
 
 ### Partners
 
-You are the partner. A partner is the company integrating Buildmarkets into a product — a fintech app, a challenger bank, a wealth platform, or any financial institution that wants to offer brokerage accounts to end users. You authenticate every API request with a key pair tied to your partner tenant. Everything created under your keys — investors, orders, funding activity — belongs to your partner account.
+You — the company integrating Buildmarkets. Partners authenticate with the API using key pairs (`X-API-Key` / `X-API-Secret`) scoped to their tenant. All accounts, orders, and funding activity created through your API keys are associated with your partner account.
 
-### Investors
+### Accounts
 
-An **investor** is a single end-user brokerage account. Each investor record holds identity and KYC data (name, date of birth, tax ID), contact information (address, phone, email), regulatory disclosures, signed agreements, and financial state (balances, positions, orders, funding). The investor is the central resource in the Buildmarkets API — almost every other resource is scoped beneath it at `/v1/investors/{investor_id}/...`.
+A Buildmarkets **account** represents one end-user brokerage account. Each account holds an identity (KYC data: name, DOB, SSN), contact information (address, phone, email), regulatory disclosures and signed agreements, an investment profile (suitability data), and positions, balances, orders, and funding activity. Accounts are the central resource in the Buildmarkets Wealth API. Almost every other resource — orders, positions, funding — is scoped under `GET /v1/accounts/{accountId}/...`.
 
 ### Orders
 
-An **order** is an instruction to buy or sell a security. Buildmarkets supports equity and ETF orders with `market`, `limit`, `stop`, `stop_limit`, and `trailing_stop` order types. Orders move through a lifecycle of states (`pending` → `filled` / `cancelled` / `failed`) and can be quantity-based (shares) or notional-based (dollar amount).
+An **order** is an instruction to buy or sell a security. Buildmarkets supports equity and ETF orders with market, limit, stop, and stop-limit order types. Orders go through a lifecycle of states and generate **executions** (fills) once matched.
 
-### Funding sources
+### ACH Relationships
 
-A **funding source** links an investor's external bank account to their brokerage account. You connect bank accounts via Plaid Link or by supplying account details manually. Once connected, a funding source can be used to initiate ACH deposits and withdrawals.
-
-### Wallets
-
-A **wallet** holds a currency balance within an investor account. Each investor has one or more wallets — typically a USD wallet. The wallet exposes key balance fields: `balance`, `available_balance`, `buying_power`, `cash_withdrawable`, and `equity`.
+An **ACH relationship** links a customer's external bank account to their Buildmarkets brokerage account. It is a prerequisite for funding. Once linked, you can initiate deposits (money into the brokerage account) and withdrawals (money back to the bank).
 
 ### Webhooks
 
-**Webhooks** are HTTP callbacks that Buildmarkets delivers to your server when significant events occur — KYC status changes, orders fill, or deposits settle. Use webhooks instead of polling to stay in sync with state changes in real time.
+**Webhooks** are HTTP callbacks that Buildmarkets fires to your server when significant events occur — an account's KYC status changes, an order is filled, or a deposit settles. Webhooks are the recommended way to stay in sync with state changes rather than polling.
 
-## Data model hierarchy
+## Data model overview
 
-```
-Partner
-├── API Keys
-└── Investors[]
-    ├── Compliance / KYC workflows
-    ├── Wallets[]
-    ├── Funding Sources[]
-    ├── Deposits[]
-    ├── Withdrawals[]
-    ├── Orders[]
-    └── Positions[]
-```
-
-<Note>
-  Market data endpoints (quotes, bars, asset search) are partner-level and are
-  not scoped to a specific investor. Webhooks are also configured at the partner
-  level and receive events across all investors.
-</Note>
+Partner (you) holds API Keys (credentials) and Accounts[]. Each Account contains Contact, Identity, Disclosures, Agreements[], InvestmentProfile, TradingConfigurations, Balances, Positions[], Orders[] (each with Executions[]), ACH Relationships[], and Funding Activity[]. Webhooks are partner-level. Market Data is partner-level (not account-scoped). Documents are partner-level plus account-level uploads.
 
 ## API conventions
 
-### Base URLs
+### REST & JSON
 
-| Environment | Base URL |
-|---|---|
-| **Sandbox** | `https://dev-tapp-api.tappengine.com` |
-| **Production** | `https://api.tappengine.com` |
-
-Use the sandbox for all development and QA. No real money is moved and no real orders are routed in the sandbox environment.
-
-### REST and JSON
-
-The Buildmarkets API is a standard REST API. All request and response bodies use JSON. Set the `Content-Type: application/json` header on every request that includes a body.
+The Buildmarkets API is a REST API. All request and response bodies are JSON. Set `Content-Type: application/json` on all requests with a body.
 
 ### Authentication
 
-Every request requires two headers:
+Every request must include two headers:
 
-```bash
-curl https://dev-tapp-api.tappengine.com/v1/investors \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
+```
+X-API-Key: <your-api-key>
+X-API-Secret: <your-api-secret>
 ```
 
-See [Authentication](/platform/authentication) for how to generate and scope keys.
+See Authentication Overview for how to generate and manage API keys.
 
 ### IDs
 
-All resource IDs are prefixed strings (e.g., `inv_01j9x8m2k7qpzwv3t5r6y8n0ab` for an investor, `ord_…` for an order, `wlt_…` for a wallet). Always store and pass IDs as strings — never treat them as integers.
+* `accountId` — UUID string, e.g. `"b3f2c9a1-4d5e-4a2f-8b3c-1e2d3f4a5b6c"`
+* `orderId` — UUID string
+* `achId` — UUID string
+* `webhookId` — UUID string
+
+Always store and pass IDs as strings. Do not treat them as integers or attempt to sort them numerically.
 
 ### Timestamps
 
-All timestamps are **ISO 8601** strings in UTC:
-
-```
-"2025-06-01T14:32:00.000Z"
-```
-
-Use this format when submitting timestamps in request bodies (e.g., `signed_at` on agreements).
+All timestamps are **ISO 8601** strings in UTC, e.g. `"2025-06-01T14:32:00Z"`. When submitting timestamps (e.g., `signed_at` on agreements), use this format.
 
 ### Monetary amounts
 
-All monetary values are **decimal strings**, not floating-point numbers. This prevents precision loss on financial data:
+Dollar amounts (balances, order quantities, transfer amounts) are represented as **decimal strings**, not floating-point numbers. This avoids precision loss on monetary values.
 
 ```json
 { "amount": "1000.00" }
@@ -104,48 +72,103 @@ All monetary values are **decimal strings**, not floating-point numbers. This pr
 
 ### Pagination
 
-List endpoints return a standard envelope with cursor-based pagination:
+List endpoints that return multiple records use **cursor-based pagination**. The response shape is:
 
 ```json
 {
-  "object": "list",
-  "url": "/v1/investors",
-  "has_more": true,
-  "data": [...]
+  "data": [...],
+  "pagination": {
+    "next_cursor": "eyJpZCI6IjEyMyJ9",
+    "has_more": true
+  }
 }
 ```
 
-Use the `limit` query parameter to control page size (default 50, max 100) and `offset` to paginate through results.
+Pass `cursor=<next_cursor>` as a query parameter to fetch the next page. Use `limit` to control page size.
 
 ### Idempotency
 
-For `POST` requests that initiate financial operations — orders, deposits, withdrawals — include a `client_order_id` or use the `Idempotency-Key` request header. If you retry a timed-out request, Buildmarkets returns the existing resource rather than creating a duplicate.
+For `POST` requests that initiate financial operations (orders, deposits, withdrawals), use the `client_order_id` or equivalent idempotency field to safely retry without duplicate execution.
 
 ## Sandbox testing
 
-The sandbox environment lets you develop and test your integration safely. KYC outcomes are controlled by the SSN suffix you provide when creating an investor:
+In the sandbox environment (`https://dev-tapp-api.tappengine.com`), KYC outcomes are controlled by the SSN suffix you provide when creating an account:
 
-| SSN suffix | KYC outcome |
+| SSN suffix | Outcome |
+|------------|---------|
+| `0001` | `APPROVED` |
+| `0002` | `REJECTED` |
+| `0003` | `MANUAL_REVIEW` |
+
+For example, SSN `111-22-0001` will result in an immediately approved account. All other sandbox behavior (order fills, funding transfers) is also simulated — no real money or real orders are involved.
+
+## Next steps
+
+* Getting Started — Step-by-step guide to your first API call
+* Authentication Overview — Generating and managing API keys
+* Use Cases — Common integration patterns
+
+---
+
+## About Buildmarkets
+
+Buildmarkets is a white-label wealth management and brokerage infrastructure platform built for financial institutions. It provides the API layer that lets financial institutions offer investment accounts, equity and ETF trading, managed portfolios, and funding services directly within their own member- or customer-facing experiences — powered by a FINRA-registered broker-dealer and SEC-registered RIA.
+
+### Buildmarkets API Overview
+
+Buildmarkets APIs sit between your application and the underlying brokerage and clearing infrastructure. You interact with a single, unified REST API; Buildmarkets handles everything underneath:
+
+* **Account opening & KYC** — Identity verification, regulatory disclosures, and agreement capture
+* **Order routing** — Routing equity and ETF orders to market
+* **ACH funding** — Linking bank accounts and moving money in and out
+* **Market data** — Real-time quotes, historical bars, fundamentals, and reference data
+* **Document management** — Statements, tax forms, and compliance documents
+* **Webhooks** — Real-time event delivery for orders, accounts, and funding status changes
+
+### Platform Architecture
+
+Your Application (Member Portal, Mobile App, or Back-Office Integration) connects via REST API (HTTPS) using X-API-Key / X-API-Secret to the Buildmarkets API. The Buildmarkets API exposes modules for Accounts, Order Management, Portfolios, Market Data, Funding, Documents, Advisory, and Webhooks. Underneath, it connects to Clearing & Custody (RQD Clearing) and Market Data Providers.
+
+### Who is Buildmarkets for?
+
+Buildmarkets is designed for **partners** — financial institutions that want to embed investing features into their product:
+
+| Partner type | Example use case |
 |---|---|
-| `0001` | `approved` (instant) |
-| `0002` | `declined` |
-| `0003` | `awaiting_review` (manual review) |
+| **Fintech apps** | Add a brokerage account tab to a personal finance app |
+| **Wealth platforms** | Power advisor-managed accounts with API-driven rebalancing |
+| **Challenger banks** | Offer stock trading alongside deposit accounts |
+| **Robo-advisors** | Automate goal-based portfolio construction and management |
+| **HR / benefits platforms** | Provide employee investment accounts as a workplace benefit |
 
-For example, submitting SSN `111-22-0001` results in an immediately approved investor. Order fills and funding transfers are also simulated — no real money moves.
+### Product Areas
 
-## What's next
+#### Buildmarkets Wealth
 
-<CardGroup cols={2}>
-  <Card title="Authentication" icon="key" href="/platform/authentication">
-    Generate API keys, understand scopes, and apply security best practices.
-  </Card>
-  <Card title="Accounts" icon="user" href="/platform/accounts">
-    Create and manage investor accounts with the Investors API.
-  </Card>
-  <Card title="KYC" icon="shield-check" href="/platform/compliance-kyc">
-    Submit identity data, track compliance status, and handle outcomes.
-  </Card>
-  <Card title="Trading" icon="chart-line" href="/platform/trading">
-    Place and manage equity and ETF orders.
-  </Card>
-</CardGroup>
+The core brokerage suite. Includes account management, equity and ETF trading, ACH funding, market data, and documents.
+
+#### Buildmarkets FIX Gateway
+
+For partners with their own OMS or algorithmic trading infrastructure, Buildmarkets offers a FIX 4.2-compliant gateway for high-throughput order submission.
+
+### Environments
+
+| Attribute | Sandbox | Production |
+|---|---|---|
+| **Purpose** | Integration development and QA | Live trading with real funds |
+| **Base URL** | `https://dev-tapp-api.tappengine.com` | `https://api.tappengine.com` |
+| **KYC** | Simulated via SSN suffix | Real KYC processing |
+| **Orders** | Simulated fills | Real order routing |
+| **Funding** | No real money moved | Real ACH transfers |
+
+### Regulatory & Compliance
+
+Buildmarkets's underlying brokerage infrastructure is operated through a registered broker-dealer and FINRA member. As a partner, you agree to Buildmarkets's partner program terms, which govern your use of the platform and your obligations with respect to customer accounts opened through your application.
+
+Refer to your partner agreement for specifics on your compliance obligations, including customer suitability, supervision, and recordkeeping requirements.
+
+### Next Steps
+
+* Introduction to Buildmarkets — Understand the key concepts and data model
+* Use Cases — See common integration patterns
+* Getting Started — Make your first API call

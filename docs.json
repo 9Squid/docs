@@ -8,7 +8,35 @@
     "light": "#8D98FF",
     "dark": "#3549A3"
   },
+  "fonts": {
+    "heading": {
+      "family": "Gelasio",
+      "weight": 500
+    },
+    "body": {
+      "family": "Geist"
+    }
+  },
+  "background": {
+    "color": {
+      "light": "#FFFFFF",
+      "dark": "#231E23"
+    }
+  },
+  "custom": {
+    "stylesheet": "/custom.css"
+  },
   "favicon": "/favicon.png",
+  "logo": {
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png"
+  },
+  "api": {
+    "openapi": {
+      "source": "api-reference/openapi.yaml"
+    },
+    "playground": {}
+  },
   "navbar": {
     "links": [
       {
@@ -23,6 +51,20 @@
     }
   },
   "navigation": {
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Buildmarkets",
+          "icon": "globe",
+          "href": "https://buildmarkets.com"
+        },
+        {
+          "anchor": "Status",
+          "icon": "chart-simple",
+          "href": "https://status.buildmarkets.com"
+        }
+      ]
+    },
     "tabs": [
       {
         "tab": "Home",
@@ -169,57 +211,14 @@
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Buildmarkets",
-          "icon": "globe",
-          "href": "https://buildmarkets.com"
-        },
-        {
-          "anchor": "Status",
-          "icon": "chart-simple",
-          "href": "https://status.buildmarkets.com"
-        }
-      ]
-    }
+    ]
   },
   "footer": {
     "socials": {
       "x": "https://x.com/buildmarkets",
-      "linkedin": "https://www.linkedin.com/company/buildmarkets",
-      "github": "https://github.com/buildmarkets"
+      "github": "https://github.com/buildmarkets",
+      "linkedin": "https://www.linkedin.com/company/buildmarkets"
     }
-  },
-  "logo": {
-    "light": "/logo/light.png",
-    "dark": "/logo/dark.png"
-  },
-  "api": {
-    "openapi": {
-      "source": "api-reference/openapi.yaml"
-    },
-    "playground": {}
-  },
-  "background": {
-    "color": {
-      "light": "#FFFFFF",
-      "dark": "#051132"
-    }
-  },
-  "fonts": {
-    "heading": {
-      "family": "Gelasio",
-      "weight": 500
-    },
-    "body": {
-      "family": "Geist"
-    }
-  },
-  "styling": {
-    "codeblocks": "system",
-    "latex": false
   },
   "contextual": {
     "options": [
@@ -232,5 +231,9 @@
       "vscode"
     ],
     "display": "header"
+  },
+  "styling": {
+    "latex": false,
+    "codeblocks": "system"
   }
 }

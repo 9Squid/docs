@@ -1,317 +1,56 @@
 ---
-title: "Self-Directed Investing Integration with Buildmarkets"
+title: "Quick Start: Self-Directed Investing"
 sidebarTitle: "Self-Directed"
-description: "Step-by-step guide to a self-directed brokerage integration with Buildmarkets — from account creation through KYC, funding, and your first order."
+description: "A step-by-step walkthrough to make your first authenticated Buildmarkets API call, open an account, fund it, place an order, and check positions."
 ---
 
-This guide walks you through the complete self-directed investing flow: generate API credentials, open an investor account, pass KYC, link a bank account, deposit funds, search for a security, place an order, and verify your position. All examples use the sandbox environment so nothing is real until you're ready to go live.
+This guide enables users to make their first API call in under 10 minutes.
 
 ## Prerequisites
 
-Before you start, make sure you have:
-
-- A Buildmarkets partner account (contact [partners@buildmarkets.com](mailto:partners@buildmarkets.com) if you haven't onboarded yet)
-- `curl` or any HTTP client installed locally
-
-<Steps>
-
-### Generate API credentials
-
-Log in to the Buildmarkets Partner Dashboard and navigate to **Settings → API Keys**. Click **+ Generate Key**, give it a label such as `sandbox-quickstart`, and select the scopes you need for this guide: `accounts:write`, `funding:write`, `trading:write`, `marketdata:read`.
-
-Copy both the API key and API secret immediately — the secret is shown only once.
-
-Set them as environment variables so you can copy-paste the rest of the examples in this guide:
-
-```bash
-export BM_KEY="your-api-key"
-export BM_SECRET="your-api-secret"
-export BM_BASE="https://dev-tapp-api.tappengine.com"
-```
-
-Verify your credentials are valid by listing your investors (empty list is fine):
-
-```bash
-curl "$BM_BASE/v1/investors" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-A `200 OK` response confirms authentication is working. A `401` means the key or secret is wrong.
-
-### Create an investor account
-
-Create a brokerage account for your end user by posting their identity, contact, and regulatory disclosure data to `POST /v1/investors`. The response includes an `investor_id` you will use in every subsequent request.
-
-<Note>
-  **Sandbox KYC outcomes are controlled by the SSN suffix you provide.** Use these test values to trigger specific compliance results without waiting for real verification:
-
-  | SSN suffix | KYC outcome |
-  |---|---|
-  | `0001` | `APPROVED` — account becomes active immediately |
-  | `0002` | `REJECTED` — account is declined |
-  | `0003` | `MANUAL_REVIEW` — account enters a pending review state |
-
-  For this guide, use `987-65-0001` to get instant approval.
-</Note>
-
-```bash
-curl -X POST "$BM_BASE/v1/investors" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "account_type": "individual",
-    "management_type": "self_directed",
-    "tax_advantaged": false,
-    "first_name": "Jane",
-    "last_name": "Doe",
-    "date_of_birth": "1990-05-15",
-    "email": "jane.doe@example.com",
-    "phone": "+14155551234",
-    "address": {
-      "street": ["456 Oak Avenue"],
-      "city": "San Francisco",
-      "state": "CA",
-      "postal_code": "94102",
-      "country": "US"
-    },
-    "tax_id": "987-65-0001",
-    "tax_id_type": "SSN",
-    "country_of_tax_residence": "US",
-    "country_of_citizenship": "US",
-    "country_of_birth": "US",
-    "funding_source": ["employment_income"],
-    "annual_income": { "min": "75000", "max": "99999" },
-    "liquid_net_worth": { "min": "20000", "max": "49999" },
-    "is_control_person": false,
-    "is_affiliated_exchange_or_finra": false,
-    "is_politically_exposed": false,
-    "immediate_family_exposed": false,
-    "employment_status": "employed",
-    "employer_name": "Acme Inc",
-    "signed_agreements": [
-      {
-        "type": "investor_agreement",
-        "signed_at": "2026-01-15T10:30:00.000Z",
-        "ip_address": "203.0.113.42"
-      }
-    ]
-  }'
-```
-
-Save the `id` from the response — this is your `investor_id`:
-
-```bash
-export INVESTOR_ID="inv_01j9x8m2k7qpzwv3t5r6y8n0ab"
-```
-
-The account `status` will be `onboarding` at this point. KYC runs asynchronously; in the sandbox with SSN suffix `0001`, approval is near-instant.
-
-You can retrieve the investor record at any time to check its current status, balances, and profile fields:
-
-```bash
-curl "$BM_BASE/v1/investors/$INVESTOR_ID" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-### Submit KYC
-
-After creating the investor, submit the compliance check to trigger identity verification. In sandbox, this step uses simulated KYC outcomes driven by the SSN suffix you provided in step 2.
-
-```bash
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/compliance/submit" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "workflow_id": "cw_01j9x8m2k7qpzwv3t5r6y8n0cd",
-    "check_type": "identity_verification",
-    "provider_payload": {
-      "event_type": "inquiry.approved",
-      "inquiry_id": "inq_sandbox_test",
-      "status": "approved"
-    }
-  }'
-```
-
-Poll the compliance status to confirm the account is approved before proceeding:
-
-```bash
-curl "$BM_BASE/v1/investors/$INVESTOR_ID/compliance" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-Wait until `status` is `approved` before moving to funding. In production, set up a webhook for the `kyc.verification.approved` event instead of polling.
-
-### Link a bank account
-
-Use Plaid Link to connect your investor's external bank account. First, create a Plaid Link token:
-
-```bash
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/funding-sources/plaid/link-token" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{ "enable_hosted_link": false }'
-```
-
-The response includes a `link_token`. Pass this token to the Plaid Link SDK in your front-end app. Once the user completes the Plaid flow, your app receives a `public_token`. Exchange it for a connected funding source:
-
-```bash
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/funding-sources/connect" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "plaid",
-    "public_token": "public-sandbox-1234abcd-5678-90ef"
-  }'
-```
-
-Save the `id` from the response as your `funding_source_id`:
-
-```bash
-export FUNDING_SOURCE_ID="fs_01j9x8m2k7qpzwv3t5r6y8n0ef"
-```
-
-<Tip>
-  You can also connect a bank account manually without Plaid by posting `"type": "manual"` with routing number, account number, and account type. This is useful for testing or for markets where Plaid is not available.
-</Tip>
-
-### Initiate a deposit
-
-With a connected funding source, deposit cash into the investor's brokerage wallet:
-
-```bash
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/deposits" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": "1000.00",
-    "currency": "USD",
-    "method": "ach",
-    "funding_source_id": "'$FUNDING_SOURCE_ID'"
-  }'
-```
-
-The deposit starts in `pending` status. In sandbox, ACH deposits settle immediately. In production, expect 1–3 business days for funds to clear. Subscribe to `transfer.deposit.completed` webhooks to react to settlement in production.
-
-### Search for a security
-
-Before placing an order, search the asset catalog to find the security you want:
-
-```bash
-curl "$BM_BASE/v1/assets/search?q=AAPL" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-The response returns matching assets with their `symbol`, `name`, `class`, and `country`. Use the `symbol` field when placing orders.
-
-You can also retrieve full details for a specific symbol:
-
-```bash
-curl "$BM_BASE/v1/assets/AAPL" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-### Place an order
-
-Place a market buy order for 10 shares of AAPL. Always include a `client_order_id` — Buildmarkets uses it to make order submission idempotent, so retrying a failed request returns the existing order rather than creating a duplicate.
-
-```bash
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "side": "buy",
-    "type": "market",
-    "time_in_force": "day",
-    "quantity": "10",
-    "client_order_id": "quickstart-aapl-buy-001"
-  }'
-```
-
-To place a dollar-based (notional) order instead of a share-quantity order, replace `quantity` with `notional`:
-
-```bash
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "side": "buy",
-    "type": "market",
-    "time_in_force": "day",
-    "notional": "500.00",
-    "client_order_id": "quickstart-aapl-notional-001"
-  }'
-```
-
-The response includes an `id` (the `order_id`) and an initial `status` of `pending`. In sandbox, orders fill near-instantly.
-
-### Check positions and wallet
-
-Once the order fills, verify the position appears in the investor's portfolio:
-
-```bash
-curl "$BM_BASE/v1/investors/$INVESTOR_ID/positions" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-Each position object includes `symbol`, `quantity`, `average_price`, and unrealized P&L fields. To retrieve a single position by symbol, use the `?symbol=AAPL` query parameter.
-
-To check the investor's cash balance and buying power, retrieve their wallet:
-
-```bash
-curl "$BM_BASE/v1/investors/$INVESTOR_ID/wallets" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-Each wallet object includes `currency`, `balance`, `available_balance`, `buying_power`, and `cash_withdrawable`. To send funds back to the investor's bank account, initiate a withdrawal:
-
-```bash
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/withdrawals" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": "500.00",
-    "currency": "USD",
-    "method": "ach",
-    "funding_source_id": "'$FUNDING_SOURCE_ID'"
-  }'
-```
-
-In sandbox, withdrawals complete immediately. In production, ACH withdrawals take 1–3 business days to settle. Subscribe to `transfer.withdrawal.completed` webhooks to track settlement status.
-
-</Steps>
-
-## What's next
-
-You've completed the full self-directed investing flow in sandbox. Here's where to go from here:
-
-<CardGroup cols={2}>
-  <Card title="Sandbox Reference" icon="flask" href="/get-started/sandbox">
-    Full reference for sandbox KYC outcomes, simulated fills, and ACH behavior.
-  </Card>
-  <Card title="Go Live" icon="rocket" href="/get-started/go-live">
-    Switch to production credentials and complete the compliance checklist.
-  </Card>
-  <Card title="Webhooks" icon="bell" href="/platform/webhooks">
-    Subscribe to order fills, deposit settlements, and KYC status events.
-  </Card>
-  <Card title="Authentication" icon="key" href="/platform/authentication">
-    Manage API key scopes, rotation, and security best practices.
-  </Card>
-</CardGroup>
+- A Buildmarkets partner account
+- Initial API key pair from onboarding or Partner Dashboard
+- `curl` or an HTTP client
+
+## Step 1: Confirm Your Credentials
+
+Authentication requires two headers:
+
+- `X-API-Key: <your-api-key>`
+- `X-API-Secret: <your-api-secret>`
+
+Test credentials via health endpoint. A `200 OK` response indicates success; `401` suggests credential issues.
+
+## Step 2: Open a Brokerage Account
+
+Create an account using POST request to `/v1/accounts` with account type, contact information, identity details, disclosures, agreements, and investment profile. In sandbox testing, using SSN ending in `0001` produces immediate KYC approval.
+
+Account response includes: `id`, `account_number`, `status`, `kyc_status`, `currency`, `last_equity`, `created_at`, and `account_type`.
+
+## Step 3: Link a Bank Account
+
+POST to `/v1/accounts/{accountId}/ach-relationships` with bank details including owner name, bank name, account type, routing number, and account number.
+
+Response includes: `id`, `status`, `bank_name`, `bank_account_type`, and `created_at`.
+
+## Step 4: Deposit Funds
+
+POST to `/v1/accounts/{accountId}/funding/deposits` using the ACH relationship ID, amount, and description. In sandbox, deposits settle immediately; production typically requires 1–3 business days.
+
+## Step 5: Place Your First Order
+
+POST to `/v1/accounts/{accountId}/orders` with `symbol`, `asset_class`, `order_type`, `side`, `quantity`, `time_in_force`, and `client_order_id`.
+
+Order response includes: `id`, `client_order_id`, `symbol`, `asset_class`, `order_type`, `side`, `quantity`, `status`, and `created_at`.
+
+## Step 6: Check Your Position
+
+GET `/v1/accounts/{accountId}/positions/{symbol}` to verify filled orders.
+
+## What's Next?
+
+- Authentication Overview
+- Account Opening (deep dive)
+- Placing Orders
+- Webhooks Overview
+- Error Codes

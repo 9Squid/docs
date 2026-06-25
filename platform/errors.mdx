@@ -1,301 +1,157 @@
 ---
-title: "Buildmarkets API Error Codes and How to Handle Them"
-sidebarTitle: "Errors"
-description: "All Buildmarkets API errors follow a structured format with HTTP status codes and BLUM error codes. Learn how to handle common errors and retry safely."
+title: "Error Handling"
+sidebarTitle: "Error Handling"
+description: "Reference for Buildmarkets HTTP status codes, structured JSON error bodies, common error codes, rate limits, and retry strategies."
 ---
 
-Every error response from the Buildmarkets API uses the same JSON envelope, regardless of whether the problem is a missing field, an authentication failure, a business-rule violation, or a server fault. Understanding this structure lets you write resilient integration code that branches on specific error types, surfaces meaningful messages to your users, and retries only the requests that are safe to retry.
+Buildmarkets uses standard HTTP status codes along with structured JSON error bodies to communicate what went wrong. This page is your reference for understanding and handling error responses.
 
----
+## Error response format
 
-## Error response envelope
-
-All error responses carry a top-level `error` object with four fields:
+All error responses return a JSON body with a consistent structure:
 
 ```json
 {
   "error": {
-    "type": "invalid_request_error",
-    "code": "BLUM-400-002",
-    "message": "Required field 'symbol' is missing.",
-    "param": "symbol"
+    "code": "VALIDATION_ERROR",
+    "message": "tax_id must be 9–11 characters",
+    "field": "identity.tax_id",
+    "request_id": "req_abc123xyz"
   }
 }
 ```
 
-<ResponseField name="error.type" type="string">
-  A broad category string you can use to branch your error-handling logic. See the [error types table](#error-types) below.
-</ResponseField>
-
-<ResponseField name="error.code" type="string">
-  A specific `BLUM-{STATUS}-{SEQ}` code that pinpoints the exact error condition. Use this for programmatic handling and when filing support requests.
-</ResponseField>
-
-<ResponseField name="error.message" type="string">
-  A developer-readable explanation of what went wrong. Do not display this string directly to end users — map it to your own UI copy.
-</ResponseField>
-
-<ResponseField name="error.param" type="string">
-  Present when the error relates to a specific request field. Contains the dot-notation path to the offending parameter (e.g. `tax_id`, `address.postal_code`).
-</ResponseField>
-
-### BLUM error code format
-
-Every error code follows the pattern `BLUM-{HTTP_STATUS}-{SEQ}`:
-
-- **`BLUM-400-002`** — bad request, sequence 002
-- **`BLUM-401-001`** — authentication error, sequence 001
-- **`BLUM-404-001`** — not found, sequence 001
-
-Always log the full code. When you contact Buildmarkets support, include the `code` value and the request body so the support team can trace the failure.
-
----
+| Field | Description |
+|-------|-------------|
+| `code` | A machine-readable error code string |
+| `message` | A human-readable description of the error |
+| `field` | (When applicable) The request field that caused the error |
+| `request_id` | A unique ID for this request — include this when contacting Buildmarkets support |
 
 ## HTTP status codes
 
 ### 2xx — Success
 
 | Code | Meaning |
-|---|---|
+|------|---------|
 | `200 OK` | Request succeeded. Response body contains the resource. |
 | `201 Created` | Resource was created. Response body contains the new resource. |
-| `204 No Content` | Request succeeded with no response body (e.g. DELETE operations). |
+| `204 No Content` | Request succeeded. No response body (e.g., DELETE, close account). |
 
 ### 4xx — Client errors
 
-These errors mean your request was the problem. Fixing the request resolves the error — retrying without changes will not help.
-
 | Code | Meaning | Common causes |
-|---|---|---|
-| `400 Bad Request` | The request body or parameters are invalid. | Missing required fields, unrecognised enum values, malformed JSON |
-| `401 Unauthorized` | Authentication failed. | Missing, invalid, or expired `X-API-Key` / `X-API-Secret` headers |
-| `403 Forbidden` | Authenticated but not authorised. | API key lacks the required permission scope for this endpoint |
-| `404 Not Found` | The requested resource does not exist. | Invalid `investor_id`, `order_id`, or other path parameter |
-| `409 Conflict` | Request conflicts with the current resource state. | Duplicate `client_order_id`, account already closed |
-| `422 Unprocessable Entity` | Request is valid but fails a business rule. | KYC not yet approved, insufficient balance for withdrawal |
-| `429 Too Many Requests` | Rate limit exceeded. | Too many requests per second or per minute — see [rate limiting](#rate-limiting) below |
+|------|---------|---------------|
+| `400 Bad Request` | The request body or parameters are invalid. | Missing required fields, invalid enum values, malformed JSON |
+| `401 Unauthorized` | Authentication failed. | Missing, invalid, or revoked `X-API-Key` / `X-API-Secret` |
+| `403 Forbidden` | Authenticated, but not authorized. | API key lacks the required scope for this endpoint |
+| `404 Not Found` | The requested resource doesn't exist. | Invalid `accountId`, `orderId`, etc. |
+| `409 Conflict` | Request conflicts with the current state of the resource. | Duplicate `client_order_id`, account already closed |
+| `422 Unprocessable Entity` | Request is syntactically valid but fails business-rule validation. | KYC rejection, insufficient balance for withdrawal |
+| `429 Too Many Requests` | Rate limit exceeded. | See Rate Limits below |
 
 ### 5xx — Server errors
 
-These errors originate on the Buildmarkets side. They are generally safe to retry with backoff.
-
 | Code | Meaning |
-|---|---|
-| `500 Internal Server Error` | An unexpected fault occurred on Buildmarkets's infrastructure. |
-| `503 Service Unavailable` | A Buildmarkets service or upstream dependency is temporarily unavailable. |
-
----
-
-## Error types
-
-The `error.type` field maps to one of the following categories. Use this field to drive high-level branching in your error handler before inspecting the specific `code`.
-
-| Type | HTTP status(es) | Description |
-|---|---|---|
-| `invalid_request_error` | 400, 422 | The request body or parameters failed validation or a business-rule check. |
-| `authentication_error` | 401 | The API key or secret is missing, invalid, or has been revoked. |
-| `permission_error` | 403 | The authenticated key does not have access to this endpoint or resource. |
-| `not_found_error` | 404 | The requested resource could not be found. |
-| `conflict_error` | 409 | The request conflicts with the current state of the resource (e.g. duplicate key). |
-| `idempotency_error` | 409 | A request was replayed with the same idempotency key but a different body. |
-| `rate_limit_error` | 429 | The request was rejected because you have exceeded the rate limit. |
-| `api_error` | 500, 503 | An unexpected error occurred on Buildmarkets's side. |
-
----
+|------|---------|
+| `500 Internal Server Error` | An unexpected error occurred on Buildmarkets's side. |
+| `503 Service Unavailable` | The service or a dependency is temporarily unavailable. |
 
 ## Common error codes
 
-<Accordion title="Authentication and authorisation errors">
+### Authentication & authorization
 
-| Code | HTTP | Description |
-|---|---|---|
-| `BLUM-401-001` | 401 | Missing or invalid `X-API-Key` / `X-API-Secret` headers |
-| `BLUM-403-001` | 403 | The API key is valid but lacks the required scope for this endpoint |
+| Error code | HTTP | Description |
+|------------|------|-------------|
+| `UNAUTHORIZED` | 401 | API key or secret is missing or invalid |
+| `FORBIDDEN` | 403 | API key is valid but lacks the required scope |
+| `KEY_REVOKED` | 401 | The API key has been revoked |
 
-</Accordion>
+### Validation errors
 
-<Accordion title="Validation errors (400 / 422)">
+| Error code | HTTP | Description |
+|------------|------|-------------|
+| `VALIDATION_ERROR` | 400 | One or more fields failed validation. Check the `field` property. |
+| `MISSING_REQUIRED_FIELD` | 400 | A required field was omitted from the request |
+| `INVALID_ENUM_VALUE` | 400 | A field value is not in the allowed set |
+| `INVALID_FORMAT` | 400 | A field value has an incorrect format (e.g., date, phone number) |
 
-| Code | HTTP | Description |
-|---|---|---|
-| `BLUM-400-001` | 400 | General validation failure — check `error.param` for the offending field |
-| `BLUM-400-002` | 400 | A required field is missing from the request body |
-| `BLUM-400-003` | 400 | A field value is not in the allowed set of enum values |
-| `BLUM-400-004` | 400 | A field value has an incorrect format (e.g. phone, date, postal code) |
+### Account errors
 
-</Accordion>
+| Error code | HTTP | Description |
+|------------|------|-------------|
+| `ACCOUNT_NOT_FOUND` | 404 | No account exists with the given `accountId` |
+| `ACCOUNT_NOT_ACTIVE` | 422 | The account is not in ACTIVE status and cannot perform this action |
+| `ACCOUNT_ALREADY_CLOSED` | 409 | The account has already been closed |
+| `KYC_REJECTED` | 422 | Account was rejected during KYC verification |
+| `KYC_PENDING` | 422 | Account KYC has not yet completed — certain actions require APPROVED status |
 
-<Accordion title="Account and KYC errors">
+### Trading errors
 
-| Code | HTTP | Description |
-|---|---|---|
-| `BLUM-404-001` | 404 | No investor account exists for the given `investor_id` |
-| `BLUM-422-001` | 422 | The account is not in `active` status and cannot perform this action |
-| `BLUM-409-001` | 409 | The account has already been closed |
-| `BLUM-422-002` | 422 | KYC verification was rejected — the investor cannot trade |
-| `BLUM-422-003` | 422 | KYC verification is still pending — certain actions require an approved status |
+| Error code | HTTP | Description |
+|------------|------|-------------|
+| `ORDER_NOT_FOUND` | 404 | No order exists with the given `orderId` |
+| `INSUFFICIENT_BUYING_POWER` | 422 | The account does not have sufficient funds to place this order |
+| `INVALID_ORDER_STATE` | 422 | The order cannot be modified or cancelled in its current state |
+| `DUPLICATE_CLIENT_ORDER_ID` | 409 | An order with this `client_order_id` already exists |
+| `MARKET_CLOSED` | 422 | The market is closed and the order type does not support extended hours |
+| `SYMBOL_NOT_TRADABLE` | 422 | The requested symbol is not available for trading |
 
-</Accordion>
+### Funding errors
 
-<Accordion title="Trading errors">
+| Error code | HTTP | Description |
+|------------|------|-------------|
+| `ACH_RELATIONSHIP_NOT_FOUND` | 404 | No ACH relationship exists with the given ID |
+| `ACH_RELATIONSHIP_NOT_APPROVED` | 422 | The ACH relationship has not yet been approved |
+| `INSUFFICIENT_BALANCE` | 422 | The account does not have sufficient settled cash for this withdrawal |
+| `FUNDING_ACTIVITY_NOT_FOUND` | 404 | No funding activity record found for the given ID |
 
-| Code | HTTP | Description |
-|---|---|---|
-| `BLUM-404-002` | 404 | No order exists for the given `order_id` |
-| `BLUM-422-004` | 422 | The account does not have sufficient buying power for this order |
-| `BLUM-422-005` | 422 | The order cannot be modified or cancelled in its current state |
-| `BLUM-409-002` | 409 | An order with this `client_order_id` already exists |
-| `BLUM-422-006` | 422 | The market is closed and the order type does not support extended hours |
-| `BLUM-422-007` | 422 | The requested symbol is not available for trading on this platform |
+## Rate limits
 
-</Accordion>
+Buildmarkets enforces rate limits to ensure platform stability for all partners.
 
-<Accordion title="Funding errors">
+| Limit | Default |
+|-------|---------|
+| Requests per second (per API key) | 10 |
+| Requests per minute (per API key) | 300 |
+| Requests per day (per partner) | Contact your Buildmarkets representative |
 
-| Code | HTTP | Description |
-|---|---|---|
-| `BLUM-404-011` | 404 | No funding source exists for the given ID |
-| `BLUM-422-010` | 422 | The funding source has not yet been approved |
-| `BLUM-422-011` | 422 | The account does not have sufficient settled cash for this withdrawal |
-| `BLUM-404-012` | 404 | No funding activity record found for the given ID |
-
-</Accordion>
-
----
-
-## Rate limiting
-
-Buildmarkets enforces per-key rate limits to ensure platform stability for all partners.
-
-| Window | Default limit |
-|---|---|
-| Per second (per API key) | 10 requests |
-| Per minute (per API key) | 300 requests |
-| Per day (per partner) | Contact your Buildmarkets representative |
-
-When you exceed the limit, you receive a `429 Too Many Requests` response. The response includes a `Retry-After` header telling you how many seconds to wait before your next request:
+When you exceed a rate limit, you receive a `429 Too Many Requests` response with a `Retry-After` header indicating how many seconds to wait before retrying:
 
 ```
 HTTP/1.1 429 Too Many Requests
 Retry-After: 2
-
-{
-  "error": {
-    "type": "rate_limit_error",
-    "code": "BLUM-429-001",
-    "message": "Rate limit exceeded. Please retry after 2 seconds."
-  }
-}
 ```
 
-Implement **exponential backoff** in your retry logic — do not immediately hammer the API after a `429`. A safe strategy: wait for the `Retry-After` duration, then retry. If you receive consecutive `429`s, double your wait time on each attempt.
-
----
-
-## Retryable vs. non-retryable errors
-
-| HTTP status | Retry? | Guidance |
-|---|---|---|
-| `400` | No | Fix the request — the error is deterministic and will not resolve on its own. |
-| `401` | No | Check your `X-API-Key` and `X-API-Secret` values. |
-| `403` | No | The key lacks the required scope — contact your Buildmarkets representative. |
-| `404` | No | The resource does not exist — verify the ID in your request path. |
-| `409` | No | Check whether a duplicate already exists before creating a new resource. |
-| `422` | No | A business-rule blocked the request — resolve the underlying condition first. |
-| `429` | Yes | Wait for `Retry-After` seconds, then retry with exponential backoff. |
-| `500` | Yes | Retry with exponential backoff (1 s → 2 s → 4 s → 8 s). Alert your team after 3–5 failed retries. |
-| `503` | Yes | Same as `500`. Indicates a temporary service disruption. |
-
----
+Implement **exponential backoff** in your retry logic. Do not immediately hammer the API after receiving a 429.
 
 ## Handling errors in practice
 
-Use `error.type` for high-level branching and `error.code` for specific cases. The following curl command deliberately omits the required `symbol` field so you can see a real `400` error response in your terminal:
+### Always check the error code, not just the status
 
-```bash
-curl -X POST https://dev-tapp-api.tappengine.com/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/orders \
-  -H "X-API-Key: $BUILDMARKETS_API_KEY" \
-  -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "class": "equity",
-    "type": "market",
-    "side": "buy",
-    "quantity": "10",
-    "time_in_force": "day"
-  }'
-```
-
-Expected response:
-
-```json
-{
-  "error": {
-    "type": "invalid_request_error",
-    "code": "BLUM-400-002",
-    "message": "Required field 'symbol' is missing.",
-    "param": "symbol"
-  }
-}
-```
-
-Handle errors programmatically by switching on `error.type` and `error.code`:
+Use the `code` field in the error body for programmatic error handling.
 
 ```javascript
-const response = await fetch('https://api.tappengine.com/v1/investors/inv_123/orders', {
-  method: 'POST',
-  headers: {
-    'X-API-Key': process.env.BUILDMARKETS_API_KEY,
-    'X-API-Secret': process.env.BUILDMARKETS_API_SECRET,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify(orderPayload),
-});
-
+const response = await fetch('.../orders', { method: 'POST', ... });
 if (!response.ok) {
   const { error } = await response.json();
-
-  switch (error.type) {
-    case 'authentication_error':
-      // Credentials are wrong — alert your ops team immediately
-      alertOpsTeam('Buildmarkets auth failure', error.code);
-      break;
-
-    case 'invalid_request_error':
-      // Validation errors — surface to the calling layer
-      throw new ValidationError(error.message, error.param);
-
-    case 'conflict_error':
-      if (error.code === 'BLUM-409-002') {
-        // Duplicate client_order_id — this may be a retry hitting an existing order
-        // Fetch the existing order by client_order_id instead of creating a new one
-        return fetchOrderByClientId(orderPayload.client_order_id);
-      }
-      throw new Error(`Conflict: ${error.code} — ${error.message}`);
-
-    case 'rate_limit_error':
-      // Back off and retry
-      await sleep(parseInt(response.headers.get('Retry-After') || '2', 10) * 1000);
-      return retryRequest();
-
-    case 'api_error':
-      // Server-side fault — log and retry with backoff
-      logger.error('Buildmarkets server error', { code: error.code });
-      return retryWithBackoff();
-
-    default:
-      throw new Error(`Unhandled Buildmarkets error: ${error.code} — ${error.message}`);
+  if (error.code === 'INSUFFICIENT_BUYING_POWER') {
+    // Show the user a "not enough funds" message
+  } else if (error.code === 'DUPLICATE_CLIENT_ORDER_ID') {
+    // This is likely a retry — fetch the existing order
+  } else {
+    // Log the request_id and alert your on-call team
+    console.error('Unexpected error', error.request_id);
   }
 }
 ```
 
-<Tip>
-  Always set `client_order_id` on every order creation request. If your request times out and you retry, a `409` with code `BLUM-409-002` tells you the original order already exists. You can then safely fetch it by `client_order_id` instead of accidentally placing a duplicate order. See [Idempotency](/platform/idempotency) for the full pattern.
-</Tip>
+### Log request IDs
 
----
+Always log the `request_id` from error responses. When contacting Buildmarkets support, provide this ID so the support team can trace the request through internal systems.
 
-## Next steps
+### Retry strategy
 
-- [Idempotency →](/platform/idempotency) — Use `client_order_id` and `Idempotency-Key` to make retries safe
-- [Webhooks →](/platform/webhooks) — Subscribe to events so you know when order and funding states change without polling
+* **400, 401, 403, 404, 409, 422** — Do not retry. These are deterministic errors that will not resolve with a retry.
+* **429** — Retry after the `Retry-After` delay.
+* **500, 503** — Retry with exponential backoff (e.g., 1s, 2s, 4s, 8s). After 3–5 retries, alert your operations team.

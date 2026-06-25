@@ -1,55 +1,38 @@
-# Mintlify Starter Kit
+# Buildmarkets Developer Docs
 
-Use the starter kit to get your docs deployed and ready to customize.
+Documentation for the [Buildmarkets](https://buildmarkets.com) platform — build, launch, and scale compliant investment products.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+Covers API references, SDKs, guides for self-directed investing, wealth management, FIX gateway, and more.
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
-
-```bash
-npx skills add https://mintlify.com/docs
-```
-
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the [AI tools guides](/ai-tools) for tool-specific setup.
+**Live docs:** [docs.buildmarkets.com](https://docs.buildmarkets.com)
 
 ## Development
 
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview changes locally:
 
-```
+```bash
 npm i -g mint
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+Run the dev server:
 
-```
+```bash
 mint dev
 ```
 
-View your local preview at `http://localhost:3000`.
+Preview at `http://localhost:3000`.
 
-## Publishing changes
+## Publishing
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+Changes pushed to the default branch deploy automatically via the [Mintlify GitHub app](https://dashboard.mintlify.com/settings/organization/github-app).
 
-## Need help?
+## Troubleshooting
 
-### Troubleshooting
+- Dev server not starting — run `mint update` to get the latest CLI.
+- 404 on a page — make sure you're in the folder with `docs.json`.
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+## Links
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+- [Buildmarkets](https://buildmarkets.com)
+- [Status](https://status.buildmarkets.com)
+- [Support](mailto:support@buildmarkets.com)

@@ -1,65 +1,51 @@
 ---
-title: "Order Cancel Request (MsgType=F): Cancel Working Orders"
-sidebarTitle: "Order Cancel"
-description: "Send an Order Cancel Request (MsgType=F) via FIX to cancel a working order. Includes required tags and handling for cancel acknowledgement or rejection."
+title: "Order Cancel Request <F>"
+sidebarTitle: "Order Cancel Request <F>"
+description: "How to cancel all remaining quantity on an existing order through the Buildmarkets FIX Gateway."
 ---
 
-The Order Cancel Request message (`MsgType=F`) cancels all remaining quantity on an open order. You must reference both your original `ClOrdID` (Tag 41, `OrigClOrdID`) and the gateway's `OrderID` (Tag 37) to uniquely identify the order. Assign a new, unique `ClOrdID` (Tag 11) to the cancel request itself — this allows you to correlate the gateway's response back to your cancel attempt.
+## Overview
+The Order Cancel Request message (MsgType = "F") enables cancellation of all remaining quantity on an existing order within the Buildmarkets FIX Gateway.
 
-The gateway will respond with one of two messages:
-
-- **Execution Report** (`MsgType=8`) with `ExecType=4` (Cancelled) — the cancel was accepted and the order is now cancelled.
-- **Order Cancel Reject** (`MsgType=9`) — the cancel was declined, typically because the order has already filled, expired, or is in a non-cancellable state.
+## Key Warning
+"A cancel request may be rejected if the order is already filled, expired, or in a non-cancellable state." Monitor for either confirmation via Execution Report or denial via Order Cancel Reject.
 
 ## Required Fields
 
-| Tag | Field | Required | Type | Description |
-|---|---|---|---|---|
-| 1 | Account | Y | String | Trading account identifier |
-| 11 | ClOrdID | Y | String | New unique ID assigned to **this cancel request** |
-| 37 | OrderID | Y | String | Gateway-assigned order ID from the original Execution Report |
-| 41 | OrigClOrdID | Y | String | `ClOrdID` of the order you want to cancel |
-| 48 | SecurityID | Y | Numeric | Venue-specific security identifier |
-| 55 | Symbol | Y | String | Ticker symbol of the order being cancelled (uppercase) |
-| 60 | TransactTime | Y | UTCTimestamp | Timestamp of this cancel request |
-| 167 | SecurityType | Y | String | `CS`=Common Stock, `OPT`=Option, `MLEG`=Multileg |
+| Tag | Field | Description | Type |
+|-----|-------|-------------|------|
+| 1 | Account | Trading account identifier | String |
+| 11 | ClOrdID | Unique identifier for cancel request | String |
+| 37 | OrderId | OrderId from the gateway | String |
+| 41 | OrigClOrdID | ClOrdID of order being cancelled | String |
+| 48 | SecurityID | Security identifier (numeric) | Numeric |
+| 55 | Symbol | Security symbol in uppercase | String |
+| 60 | TransactTime | Transaction timestamp | UTCTimestamp |
+| 167 | SecurityType | Type: CS (stock), OPT (option), MLEG (multileg) | String |
 
 ## Optional Fields
 
-| Tag | Field | Type | Description |
-|---|---|---|---|
-| 54 | Side | Char | Order side (`1`=Buy, `2`=Sell). Must match the original order's side if included. |
+| Tag | Field | Description |
+|-----|-------|-------------|
+| 54 | Side | Must match original order's side (1=Buy, 2=Sell) |
 
-<Warning>
-A cancel request may be rejected if the order is already filled, expired, cancelled, or in any other terminal state. Always monitor for the gateway's response — do not assume a cancel is confirmed until you receive the Execution Report with `ExecType=4`.
-</Warning>
+## Message Examples
 
-## Examples
-
-### Equity Order Cancellation
-
-```fix
-8=FIX.4.4|35=F|49=CLIENT1|56=BUILDMARKETS|34=20|52=20260212-15:00:00.000|
-11=CXL-20260212-001|1=ACC123456789|37=BMKT-78450|41=ORD-20260212-001|
-55=AAPL|167=CS|54=1|60=20260212-15:00:00.000|10=034|
+**Equity Order Cancellation:**
+```
+8=FIX.4.4|35=F|49=CLIENT1|56=BUILDMARKETS|11=CXL-20260212-001|1=ACC123456789|37=BMKT-78450|41=ORD-20260212-001|55=AAPL|167=CS|54=1|60=20260212-15:00:00.000|10=034|
 ```
 
-### Option Order Cancellation
-
-```fix
-8=FIX.4.4|35=F|49=CLIENT1|56=BUILDMARKETS|34=21|52=20260212-15:01:00.000|
-11=CXL-20260212-002|1=ACC123456789|37=BMKT-78451|41=ORD-20260212-003|
-55=AAPL|167=OPT|54=1|60=20260212-15:01:00.000|10=056|
+**Option Order Cancellation:**
+```
+8=FIX.4.4|35=F|49=CLIENT1|56=BUILDMARKETS|11=CXL-20260212-002|1=ACC123456789|37=BMKT-78451|41=ORD-20260212-003|55=AAPL|167=OPT|54=1|60=20260212-15:00:00.000|10=056|
 ```
 
-### Multileg Order Cancellation
-
-```fix
-8=FIX.4.4|35=F|49=CLIENT1|56=BUILDMARKETS|34=22|52=20260212-15:02:00.000|
-11=CXL-20260212-003|1=ACC123456789|37=BMKT-78460|41=MLEG-20260212-001|
-55=AAPL|167=MLEG|54=1|60=20260212-15:02:00.000|10=078|
+**Multileg Order Cancellation:**
+```
+8=FIX.4.4|35=F|49=CLIENT1|56=BUILDMARKETS|11=CXL-20260212-003|1=ACC123456789|37=BMKT-78460|41=MLEG-20260212-001|55=AAPL|167=MLEG|54=1|60=20260212-15:00:00.000|10=078|
 ```
 
-<Note>
-The `ClOrdID` on a cancel request (Tag 11) must be different from the `OrigClOrdID` (Tag 41). Re-using the same ID for both will cause the cancel to be rejected.
-</Note>
+## REST Alternatives
+- Single-leg: `POST /api/external/cancel?OrderCode={code}&AccountNo={acct}`
+- Multi-leg: `POST /api/Order/CancelMultiLegOrder` (JSON body)

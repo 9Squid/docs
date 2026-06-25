@@ -1,358 +1,88 @@
 ---
-title: "Wealth Management Integration Guide for Buildmarkets"
+title: "Quick Start: Wealth Management"
 sidebarTitle: "Wealth Management"
-description: "Build advisor-managed or robo-advisory accounts with Buildmarkets — from account setup and ACH funding to portfolio construction and rebalancing."
+description: "Common Buildmarkets integration patterns for embedded brokerage, advisor-managed accounts, robo-advisors, challenger banks, and employee benefits."
 ---
 
-Buildmarkets is flexible enough to power a wide range of managed-money products. Whether you're building advisor-managed accounts where a human RIA controls the portfolio, or a fully automated robo-advisor where your algorithm runs the show, the API model is the same: create an account with the right metadata, fund it via ACH, place orders using notional (dollar) amounts, and subscribe to fill events to trigger your next action.
-
-This guide walks through the advisor-managed and robo-advisor patterns. For a consumer self-directed flow, see the [Self-Directed Quick Start](/get-started/quick-start-self-directed).
+"Buildmarkets is flexible enough to power a wide range of embedded investing products." This documentation explores integration patterns to clarify which API capabilities align with your needs before development begins.
 
 ## Use case matrix
 
-Before you build, identify which API capabilities your integration requires:
-
 | Scenario | Accounts | Trading | Funding | Market Data | Documents | Webhooks |
-|---|---|---|---|---|---|---|
+|----------|----------|---------|---------|-------------|-----------|----------|
 | Embedded brokerage app | ✅ | ✅ | ✅ | ✅ | | |
 | Advisor-managed accounts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Robo-advisor / automated investing | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Challenger bank with investing | ✅ | ✅ | ✅ | ✅ | | ✅ |
 | Employee investment benefits | ✅ | ✅ | ✅ | ✅ | ✅ | |
 
-## Prerequisites
+## 1. Embedded brokerage app
 
-Before you start, make sure you have:
+**Scenario:** You're building a consumer fintech app and want to add an "Invest" tab that lets users open a brokerage account, fund it, and trade stocks and ETFs.
 
-- A Buildmarkets partner account
-- API credentials from **Settings → API Keys** in the Partner Dashboard
+**What you'll build:** (1) Collect KYC data and open a brokerage account — `POST /v1/accounts`; (2) Link the user's external bank account via ACH — `POST /v1/accounts/{accountId}/ach-relationships`; (3) Initiate an initial cash deposit — `POST /v1/accounts/{accountId}/funding/deposits`; (4) Display a stock or ETF search using reference data — `POST /v1/marketdata/reference/symbol-details`; (5) Place a market or limit order — `POST /v1/accounts/{accountId}/orders`; (6) Display the portfolio — balances and open positions — `GET /v1/accounts/{accountId}/balances` + `/positions`.
 
-Set your credentials as environment variables so you can copy-paste the examples below:
+**Key account fields:** `account_type: "individual"`, `investment_profile`, `agreements`. **Key order fields:** `symbol`, `asset_class` (`equity` or `etf`), `order_type`, `side`, `quantity` or `notional`, `client_order_id`.
 
-```bash
-export BM_KEY="your-api-key"
-export BM_SECRET="your-api-secret"
-export BM_BASE="https://dev-tapp-api.tappengine.com"
-```
+## 2. Advisor-managed accounts
 
-<Steps>
+**Scenario:** You operate a wealth management platform where registered advisors manage portfolios on behalf of clients.
 
-### Create an account with advisor metadata
+**What you'll build:** (1) Open a client account with advisor metadata — `POST /v1/accounts`; (2) Fund the client account via ACH — `POST /v1/accounts/{accountId}/funding/deposits`; (3) Place and manage orders on the client's behalf — `POST /v1/accounts/{accountId}/orders`; (4) Modify or cancel working orders — `PATCH` / `DELETE /v1/accounts/{accountId}/orders/{orderId}`; (5) Monitor portfolio value across all client accounts — `GET /v1/accounts/{accountId}/balances` + `/positions`; (6) Receive real-time fill confirmations via webhook — `POST /v1/webhooks`.
 
-For advisor-managed accounts, set `discretionary_account: true` on the investor record. This grants your platform (or the assigned advisor) full trading authority over the account. Pair it with `advisor_code` to associate the account with a specific advisor, and `registered_rep_code` to link it to a registered representative.
+**Key account fields:** `discretionary_account: true` (grants the advisor full trading authority); `registered_rep_code` (associates with a registered representative); `advisor_code` (associates with a specific advisor). **Key order fields:** Use `client_order_id` on every order to prevent duplicate submissions. Orders support `market`, `limit`, `stop`, and `stop_limit` types for equities and ETFs.
 
-For robo-advisors, capture detailed suitability data — `risk_tolerance`, `investment_objective`, and `time_horizon` — so your allocation engine can build the right model portfolio.
+## 3. Robo-advisor / automated investing
 
-<CodeGroup>
+**Scenario:** You're building an automated investing product where users define goals and risk tolerance and your system manages their portfolio using rules-based logic.
 
-```bash Advisor-Managed Account
-curl -X POST "$BM_BASE/v1/investors" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "account_type": "individual",
-    "management_type": "advisor_managed",
-    "tax_advantaged": false,
-    "first_name": "Alex",
-    "last_name": "Rivera",
-    "date_of_birth": "1985-03-22",
-    "email": "alex.rivera@example.com",
-    "phone": "+12125550101",
-    "address": {
-      "street": ["789 Park Avenue"],
-      "city": "New York",
-      "state": "NY",
-      "postal_code": "10021",
-      "country": "US"
-    },
-    "tax_id": "987-65-0001",
-    "tax_id_type": "SSN",
-    "country_of_tax_residence": "US",
-    "country_of_citizenship": "US",
-    "country_of_birth": "US",
-    "funding_source": ["employment_income"],
-    "annual_income": { "min": "150000", "max": "199999" },
-    "liquid_net_worth": { "min": "100000", "max": "249999" },
-    "is_control_person": false,
-    "is_affiliated_exchange_or_finra": false,
-    "is_politically_exposed": false,
-    "immediate_family_exposed": false,
-    "employment_status": "employed",
-    "employer_name": "Rivera Ventures LLC",
-    "discretionary_account": true,
-    "advisor_code": "ADV-7890",
-    "registered_rep_code": "REP-4512",
-    "signed_agreements": [
-      {
-        "type": "investor_agreement",
-        "signed_at": "2026-01-15T10:30:00.000Z",
-        "ip_address": "203.0.113.55"
-      }
-    ]
-  }'
-```
+**What you'll build:** (1) Open an account capturing detailed suitability data — `POST /v1/accounts`; (2) Enable automatic dividend reinvestment — `dividend_reinvestment: true` on account creation; (3) Fund accounts on a recurring schedule via ACH — `POST /v1/accounts/{accountId}/funding/deposits`; (4) Submit dollar-based orders to implement your allocation model — `POST /v1/accounts/{accountId}/orders` with `notional`; (5) Rebalance by cancelling and replacing working orders — `DELETE` + `POST /v1/accounts/{accountId}/orders`; (6) React to order fill events to trigger the next rebalancing step — `POST /v1/webhooks` (subscribe to order events).
 
-```bash Robo-Advisor Account
-curl -X POST "$BM_BASE/v1/investors" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "account_type": "individual",
-    "management_type": "self_directed",
-    "tax_advantaged": false,
-    "first_name": "Sam",
-    "last_name": "Chen",
-    "date_of_birth": "1992-07-10",
-    "email": "sam.chen@example.com",
-    "phone": "+14085550202",
-    "address": {
-      "street": ["321 Tech Blvd"],
-      "city": "San Jose",
-      "state": "CA",
-      "postal_code": "95110",
-      "country": "US"
-    },
-    "tax_id": "987-65-0001",
-    "tax_id_type": "SSN",
-    "country_of_tax_residence": "US",
-    "country_of_citizenship": "US",
-    "country_of_birth": "US",
-    "funding_source": ["employment_income"],
-    "annual_income": { "min": "75000", "max": "99999" },
-    "liquid_net_worth": { "min": "20000", "max": "49999" },
-    "is_control_person": false,
-    "is_affiliated_exchange_or_finra": false,
-    "is_politically_exposed": false,
-    "immediate_family_exposed": false,
-    "employment_status": "employed",
-    "employer_name": "Startup Inc",
-    "investment_profile": {
-      "risk_tolerance": "moderate",
-      "investment_objective": "growth",
-      "time_horizon": "long"
-    },
-    "dividend_reinvestment": true,
-    "signed_agreements": [
-      {
-        "type": "investor_agreement",
-        "signed_at": "2026-01-15T10:30:00.000Z",
-        "ip_address": "203.0.113.60"
-      }
-    ]
-  }'
-```
+**Key account fields:** `investment_profile.risk_tolerance` (`conservative`, `moderate`, `aggressive`); `investment_profile.investment_objective` (e.g. `growth`, `income`, `capital_preservation`); `investment_profile.time_horizon` (`short`, `average`, `long`); `dividend_reinvestment` (auto-reinvests dividends into the same security). **Key order fields:** Use `notional` (dollar amount) instead of `quantity` (share count) for dollar-cost averaging. Supports `gtc` (good-till-cancelled) time-in-force for limit-based allocation strategies.
 
-</CodeGroup>
+## 4. Challenger bank with investing
 
-Save the `id` from the response as your `investor_id`:
+**Scenario:** You run a challenger bank and want to offer integrated stock and ETF trading alongside your existing deposit accounts.
 
-```bash
-export INVESTOR_ID="inv_01j9x8m2k7qpzwv3t5r6y8n0ab"
-```
+**What you'll build:** (1) Open a brokerage account tied to your existing user record — `POST /v1/accounts` with `corr_metadata`; (2) Link your bank's account as the funding source — `POST /v1/accounts/{accountId}/ach-relationships`; (3) Power market data widgets — quotes, logos, news — `GET /v1/marketdata/real-time/{symbol}`, `/logos/{symbol}`, `/news/{symbol}`; (4) Let users place orders from within your banking UI — `POST /v1/accounts/{accountId}/orders`; (5) Sync order and funding status back to your core system — `POST /v1/webhooks`; (6) Retrieve execution reports for internal reconciliation — `GET /v1/accounts/{accountId}/orders/{orderId}/executions`.
 
-<Note>
-  In sandbox, use SSN suffix `0001` (e.g., `987-65-0001`) to trigger instant KYC approval. Use `0002` for rejection and `0003` for manual review.
-</Note>
+**Key account field:** `corr_metadata` — a freeform string (up to 255 chars) for storing your internal user or account ID alongside the Buildmarkets account. Makes it easy to look up the Buildmarkets account from your system without maintaining a separate mapping table. **Key market data endpoints:** Real-time prices, company profiles, stock logos, and news feeds are all available at the partner level — no account context required. Ideal for powering discovery and watchlist UIs.
 
-### Fund the account via ACH
+## 5. Employee investment benefits
 
-Connect the client's bank account via Plaid and initiate a deposit. First, generate a Plaid Link token and complete the bank connection flow:
+**Scenario:** You're an HR or benefits platform and want to offer employees a brokerage account as a workplace benefit, funded via payroll integration.
 
-```bash
-# Step 1: Create a Plaid Link token
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/funding-sources/plaid/link-token" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{ "enable_hosted_link": false }'
-```
+**What you'll build:** (1) Open accounts with employer and employee metadata — `POST /v1/accounts` with `corr_metadata`, `registered_rep_code`; (2) Set up ACH relationships linked to employee bank accounts — `POST /v1/accounts/{accountId}/ach-relationships`; (3) Initiate recurring payroll-linked deposits — `POST /v1/accounts/{accountId}/funding/deposits`; (4) Offer a curated investment menu using sector and security reference data — `GET /v1/marketdata/reference/sectors`, `POST /v1/marketdata/reference/sector-symbols`; (5) Deliver tax documents and statements to employees by email — `POST /v1/documents/email`; (6) Retrieve year-end documents including W-9s — `POST /v1/documents/w9`, `POST /v1/documents/list`.
 
-After the investor completes the Plaid flow and your app receives a `public_token`, connect the funding source:
-
-```bash
-# Step 2: Connect the funding source
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/funding-sources/connect" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "plaid",
-    "public_token": "public-sandbox-1234abcd-5678-90ef"
-  }'
-```
-
-Now initiate the initial deposit:
-
-```bash
-# Step 3: Initiate a deposit
-export FUNDING_SOURCE_ID="fs_01j9x8m2k7qpzwv3t5r6y8n0ef"
-
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/deposits" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": "10000.00",
-    "currency": "USD",
-    "method": "ach",
-    "funding_source_id": "'$FUNDING_SOURCE_ID'"
-  }'
-```
-
-For robo-advisor products with recurring contributions, call `POST /v1/investors/{investor_id}/deposits` on your funding schedule (weekly, monthly, etc.) using the same `funding_source_id`.
-
-### Place portfolio orders with notional amounts
-
-Use `notional` (dollar amount) instead of `quantity` (share count) to implement dollar-cost averaging and model-portfolio allocations. This lets you allocate, say, 40% of a $10,000 deposit to AAPL without calculating share quantities yourself.
-
-Always include a `client_order_id` on every order. This makes order submission idempotent — if a network timeout forces a retry, Buildmarkets returns the existing order rather than creating a duplicate.
-
-<CodeGroup>
-
-```bash Notional Market Buy
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "AAPL",
-    "side": "buy",
-    "type": "market",
-    "time_in_force": "day",
-    "notional": "4000.00",
-    "client_order_id": "portfolio-rebal-aapl-20260115-001"
-  }'
-```
-
-```bash Limit Buy (GTC)
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "MSFT",
-    "side": "buy",
-    "type": "limit",
-    "time_in_force": "gtc",
-    "quantity": "10",
-    "limit_price": "375.00",
-    "client_order_id": "portfolio-rebal-msft-20260115-001"
-  }'
-```
-
-```bash ETF Allocation
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "VTI",
-    "side": "buy",
-    "type": "market",
-    "time_in_force": "day",
-    "notional": "6000.00",
-    "client_order_id": "portfolio-rebal-vti-20260115-001"
-  }'
-```
-
-</CodeGroup>
-
-For advisor-managed accounts, you can also cancel and replace open orders as part of a rebalance:
-
-```bash
-# Cancel an open order
-export ORDER_ID="ord_01j9x8m2k7qpzwv3t5r6y8n0ab"
-
-curl -X POST "$BM_BASE/v1/investors/$INVESTOR_ID/orders/$ORDER_ID/cancel" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-### Monitor positions
-
-Check the current portfolio holdings to verify your orders filled and the allocations match your model:
-
-```bash
-curl "$BM_BASE/v1/investors/$INVESTOR_ID/positions" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-Each position object includes `symbol`, `quantity`, `average_price`, current market value, and unrealized P&L. Set `?refresh_prices=true` (the default) to get live prices, or `?refresh_prices=false` to use stored values for faster reads.
-
-For a high-level equity snapshot across the account, use the portfolio chart endpoint:
-
-```bash
-curl "$BM_BASE/v1/investors/$INVESTOR_ID/portfolio-chart" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET"
-```
-
-### Set up webhooks for fill confirmations
-
-For advisor-managed and robo-advisor flows, use webhooks instead of polling to react to fill events. Register a webhook endpoint to receive notifications when orders fill, deposits settle, or compliance status changes:
-
-```bash
-curl -X POST "$BM_BASE/v1/webhooks" \
-  -H "X-API-Key: $BM_KEY" \
-  -H "X-API-Secret: $BM_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Wealth management webhook",
-    "url": "https://your-app.example.com/webhooks/buildmarkets",
-    "eventTypeNames": [
-      "order.filled",
-      "order.canceled",
-      "transfer.deposit.completed",
-      "kyc.verification.approved"
-    ]
-  }'
-```
-
-When an order fills, Buildmarkets posts an `order.filled` event to your endpoint. Your handler can then trigger the next step — placing the next tranche of orders, updating your portfolio model, or notifying the advisor.
-
-<Tip>
-  For robo-advisor rebalancing, subscribe to `order.filled` and chain your next order placement inside the webhook handler. This avoids polling loops and keeps your allocation logic in sync with actual execution.
-</Tip>
-
-</Steps>
+**Key market data endpoints:** Use the equity security master (`POST /v1/marketdata/reference/equity-security-master`) and sector-symbols (`POST /v1/marketdata/reference/sector-symbols`) to build a curated fund menu scoped to specific industries or sectors rather than exposing the entire universe of tradable securities.
 
 ## Common integration patterns
 
+### Webhooks over polling
+
+"For operational state changes — account KYC approval, order fills, deposit settlements — use webhooks rather than polling." Configure a webhook endpoint via `POST /v1/webhooks` and subscribe to the specific event types you need. Polling is acceptable for UI-driven reads like balances and positions. See Webhooks Overview for the full event catalog and delivery guarantees.
+
 ### Idempotency with `client_order_id`
 
-Always pass a `client_order_id` on every `POST /v1/investors/{investor_id}/orders` request. A reliable scheme is `{your-user-id}-{symbol}-{side}-{date}-{sequence}`. If a network timeout forces a retry, Buildmarkets returns the existing order rather than creating a duplicate submission.
+Pass a `client_order_id` on every `POST /v1/accounts/{accountId}/orders` request. If a network timeout forces a retry, Buildmarkets returns the existing order rather than creating a duplicate. A reliable scheme: `{your-user-id}-{symbol}-{side}-{date}-{sequence}`.
 
 ### Handling pending states
 
-Resources move through intermediate states before becoming active. Use webhooks to detect these transitions rather than polling in a tight loop.
+| Resource | Pending state | Active state |
+|----------|---------------|--------------|
+| Account | `SUBMITTED` → `APPROVAL_PENDING` | `ACTIVE` |
+| ACH relationship | `PENDING` | `APPROVED` |
+| Deposit / withdrawal | `PENDING` | `SETTLED` |
 
-| Resource | Pending state | Active / settled state |
-|---|---|---|
-| Investor account | `onboarding` → `approval_pending` | `active` |
-| Funding source | `pending` | `approved` |
-| Deposit / withdrawal | `pending` | `completed` |
-| Order | `pending` | `filled` |
+Use webhooks (or poll sparingly) to detect these transitions before presenting confirmations in your UI.
 
 ### `corr_metadata` for cross-system linking
 
-Pass your internal user or account ID in `corr_metadata` when creating an investor account. This freeform field (up to 255 characters) lets you look up the Buildmarkets account from your system without maintaining a separate ID-mapping table.
+"The `corr_metadata` field on an account is your bridge between Buildmarkets and your internal data model." Store your internal user ID, account reference, or any structured string there at account creation. This eliminates the need for a separate ID-mapping database and makes cross-system lookups straightforward.
 
-## What's next
+## Next steps
 
-<CardGroup cols={2}>
-  <Card title="Sandbox Reference" icon="flask" href="/get-started/sandbox">
-    Test KYC outcomes, simulated fills, and ACH behavior before going live.
-  </Card>
-  <Card title="Go Live" icon="rocket" href="/get-started/go-live">
-    Complete the compliance checklist and switch to your production credentials.
-  </Card>
-  <Card title="Webhooks" icon="bell" href="/platform/webhooks">
-    Full event catalog and delivery guarantees for order, account, and funding events.
-  </Card>
-  <Card title="Authentication" icon="key" href="/platform/authentication">
-    Scope your API keys to least-privilege and set up key rotation.
-  </Card>
-</CardGroup>
+* Getting Started — Make your first API call end-to-end
+* Account Opening — Full field reference for `POST /v1/accounts`
+* Placing Orders — Order types, time-in-force, and idempotency
+* Webhooks Overview — Event catalog and delivery configuration

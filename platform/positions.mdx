@@ -1,158 +1,33 @@
 ---
-title: "View Investor Portfolio Positions and Unrealized P&L"
+title: "Positions"
 sidebarTitle: "Positions"
-description: "Retrieve an investor's current positions — including quantity held, market value, cost basis, unrealized P&L, and portfolio chart data."
+description: "Retrieve account balances and open positions once an account is ACTIVE, including field definitions and settlement timing."
 ---
 
-Once an investor has funded their account and placed orders, their portfolio builds up a set of **positions** — records of the securities they currently hold. Use the positions endpoints to populate portfolio views, calculate unrealized gains and losses, and surface per-holding performance data in your UI. Positions are updated in real time as orders fill and prices change.
+## Overview
 
-Positions are only available for investors in `active` status. Fetching positions for an investor in any other state returns an empty list.
+Describes how to retrieve account financial data once an account reaches `ACTIVE` status. These endpoints support portfolio dashboards, buying-power validation, and position management interfaces.
 
-## List all positions
+## Key Endpoints
 
-```bash
-curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/positions \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
+**Get Account Balances** — `GET /v1/accounts/{accountId}/balances` — Returns current cash and equity information.
 
-**Example response:**
+**List All Open Positions** — `GET /v1/accounts/{accountId}/positions` — Returns securities with non-zero quantities.
 
-```json
-{
-  "object": "list",
-  "url": "/v1/investors/inv_01j9x8m2k7qpzwv3t5r6y8n0ab/positions",
-  "has_more": false,
-  "data": [
-    {
-      "id": "pos_01j9x8m2k7qpzwv3t5r6y8n0ab",
-      "object": "position",
-      "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
-      "symbol": "AAPL",
-      "class": "equity",
-      "country": "us",
-      "currency": "USD",
-      "quantity": "10.5",
-      "average_cost_basis": "175.50",
-      "total_cost_basis": "1842.75",
-      "current_price": "180.00",
-      "market_value": "1890.00",
-      "unrealized_pl": "47.25",
-      "unrealized_pl_percent": "2.56",
-      "price_source": "REAL_TIME_FEED",
-      "price_confidence": "REAL_TIME",
-      "price_timestamp": "2025-06-01T14:30:00.000Z",
-      "updated_at": "2025-06-01T14:30:05.000Z"
-    }
-  ]
-}
-```
+**Get Single Position** — `GET /v1/accounts/{accountId}/positions/{symbol}` — Returns 404 if no position exists for that symbol.
 
-## Position fields
+## Balance Field Definitions
 
-| Field | Description |
-|---|---|
-| `symbol` | Ticker symbol of the held security |
-| `class` | Asset class: `equity`, `etf`, `bond`, etc. |
-| `country` | ISO 3166-1 alpha-2 country code of the asset (lowercase) |
-| `currency` | Settlement currency |
-| `quantity` | Number of shares held (decimal string; supports fractional shares) |
-| `average_cost_basis` | Average price paid per share across all purchases |
-| `total_cost_basis` | Total amount invested: `quantity × average_cost_basis` |
-| `current_price` | Latest market price per share |
-| `market_value` | Current value of the position: `quantity × current_price` |
-| `unrealized_pl` | Unrealized profit or loss in dollars: `market_value − total_cost_basis` |
-| `unrealized_pl_percent` | Unrealized P&L as a percentage of cost basis |
-| `price_source` | Indicates where the price was sourced from (e.g. `REAL_TIME_FEED`, `UNAVAILABLE`) |
-| `price_confidence` | Freshness of the price: `REAL_TIME`, `DELAYED`, `END_OF_DAY`, `STALE`, or `UNAVAILABLE` |
-| `price_timestamp` | When the current price was last updated |
+The response includes: total cash, settled/unsettled cash components, buying power, equity value, long market value, previous close equity, portfolio value, and timestamp.
 
-## Live vs. stored prices
+## Position Field Definitions
 
-By default, the positions endpoint fetches live prices from market data providers, which adds a small amount of latency. Set `refresh_prices=false` to return stored prices instead — useful for scenarios where speed matters more than precision, such as background syncs or non-real-time displays.
+Position data encompasses: ticker symbol, asset class, share quantity, average entry price, side (long), market value, cost basis, unrealized gain/loss in dollars and percentage, current price, prior day close, and intraday change metrics.
 
-```bash
-# Use stored prices for a faster response
-curl "https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/positions?refresh_prices=false" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
+## Settlement Timing
 
-When `refresh_prices=true` (default), check `price_confidence` to understand how fresh the price is:
+ACH deposits require 1–3 business days to settle in production (instant in sandbox). Equity sale proceeds settle T+1. Unsettled funds appear separately and don't count toward buying power.
 
-| Confidence | Description |
-|---|---|
-| `REAL_TIME` | Price is live from the exchange |
-| `DELAYED` | Price is delayed by up to 15 minutes |
-| `END_OF_DAY` | Price is the previous session's close |
-| `STALE` | Price data is older than expected — treat with caution |
-| `UNAVAILABLE` | Price could not be retrieved |
+## Practical Recommendations
 
-## Retrieve a single position
-
-Fetch the full details for one position by its prefixed ID:
-
-```bash
-curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/positions/POSITION_ID \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
-
-You can also filter the list endpoint by `symbol` to find a position without knowing its ID:
-
-```bash
-curl "https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/positions?symbol=AAPL" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
-
-## Portfolio chart
-
-Retrieve the investor's current portfolio value and a historical time-series for rendering a portfolio performance chart:
-
-```bash
-curl https://dev-tapp-api.tappengine.com/v1/investors/INVESTOR_ID/portfolio-chart \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "X-API-Secret: YOUR_API_SECRET"
-```
-
-**Example response:**
-
-```json
-{
-  "object": "portfolio_chart",
-  "livemode": false,
-  "investor_id": "inv_01j9x8m2k7qpzwv3t5r6y8n0ab",
-  "currency": "USD",
-  "current": {
-    "total_value": "2500.00",
-    "cash_value": "500.00",
-    "positions_value": "2000.00",
-    "as_of": "2025-06-01T12:00:00.000Z"
-  },
-  "chart_data": [
-    { "date": "2025-05-01", "total_value": "2100.00" },
-    { "date": "2025-05-15", "total_value": "2300.00" },
-    { "date": "2025-06-01", "total_value": "2500.00" }
-  ]
-}
-```
-
-The `current` block gives you the live snapshot:
-
-| Field | Description |
-|---|---|
-| `total_value` | Cash + positions value combined |
-| `cash_value` | Current wallet balance |
-| `positions_value` | Sum of `market_value` across all open positions |
-| `as_of` | Timestamp the snapshot was computed |
-
-The `chart_data` array contains daily total portfolio values for rendering the historical performance line chart.
-
-## Positions endpoints summary
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/v1/investors/{id}/positions` | List all open positions |
-| `GET` | `/v1/investors/{id}/positions/{position_id}` | Get a single position by ID |
-| `GET` | `/v1/investors/{id}/portfolio-chart` | Get portfolio value and historical chart data |
+Combine balances and positions endpoints with market data services to build dashboards, and compare estimated order costs against available buying power before presenting confirmation screens.
