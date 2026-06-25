@@ -209,8 +209,10 @@
 }
 
 .landing-btn-primary:hover {
-  background: #ABDB07;
+  background: #ABDB07 !important;
   transform: translateY(-1px);
+  filter: none !important;
+  opacity: 1 !important;
 }
 
 /* Secondary button — white */
@@ -288,12 +290,19 @@ img[alt="Buildmarkets"] {
    ========================================================================== */
 .bg-primary, .bg-primary-light, .bg-primary-dark,
 button[class*="bg-primary"], a[class*="bg-primary"] {
+  background-color: #E0FE66 !important;
   color: #0F0E0F !important;
-}
-
-/* Ensure the navbar button is fully rounded if Mintlify uses a wrapper */
-.bg-primary {
   border-radius: 10px !important;
+  filter: none !important;
+  opacity: 1 !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
-
+/* Exact Figma Hover State */
+.bg-primary:hover, .bg-primary-light:hover, .bg-primary-dark:hover,
+button[class*="bg-primary"]:hover, a[class*="bg-primary"]:hover {
+  background-color: #ABDB07 !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
