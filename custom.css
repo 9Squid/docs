@@ -238,109 +238,31 @@
 }
 
 /* ==========================================================================
-   CANDLESTICK DECORATIONS
-   Pixel-matched to Figma — using CSS candlestick bars with wicks
-   Left side (Frame 2147224287): blue/purple palette
-   Right side (Frame 1984078656): lime/dark palette
+   NAVBAR LOGO SIZING
+   Force the logo to display at the full 40px height as requested
    ========================================================================== */
+a[href="/"] img, 
+img[alt="Buildmarkets"] {
+  height: 40px !important;
+  max-height: 40px !important;
+  width: auto !important;
+}
 
-/* Outer wrapper — absolutely fills the CTA section */
+/* ==========================================================================
+   CANDLESTICK DECORATIONS
+   Using SVG images matched to Figma dimensions (335px width)
+   ========================================================================== */
 .landing-candles {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  height: 100%;
+  top: 50%;
+  transform: translateY(-50%);
   width: 335px;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 20px 0 0;
   pointer-events: none;
   z-index: 1;
-  box-sizing: border-box;
 }
 
 .landing-candles-left  { left: 0; }
-.landing-candles-right { right: 0; flex-direction: row-reverse; }
-
-/* Each candlestick column: wrapper holds wick + body */
-.candle-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  height: 100%;
-  gap: 0;
-}
-
-/* Wick above the body */
-.candle-wick {
-  width: 2px;
-  border-radius: 1px;
-  flex-shrink: 0;
-}
-
-/* Candle body */
-.candle-body {
-  width: 100%;
-  border-radius: 3px 3px 0 0;
-  flex-shrink: 0;
-}
-
-/* ── LEFT SIDE — blue/purple palette ── */
-/* Heights in px to avoid percentage issues in flex containers */
-
-/* Col 1 — smallest, blue */
-.cl-1 .candle-wick  { height: 40px; background: rgba(62, 96, 255, 0.5); }
-.cl-1 .candle-body  { height: 160px; background: linear-gradient(173.84deg, rgba(62, 96, 255, 0.9) -42%, rgba(62, 96, 255, 0) 74%), #0D1243; }
-
-/* Col 2 — purple */
-.cl-2 .candle-wick  { height: 30px; background: rgba(160, 100, 244, 0.5); }
-.cl-2 .candle-body  { height: 140px; background: linear-gradient(170.8deg, rgba(160, 100, 244, 0.9) -4%, rgba(112, 30, 226, 0) 75%), #1E0542; }
-
-/* Col 3 — lavender (semi-transparent) */
-.cl-3 .candle-wick  { height: 35px; background: rgba(131, 109, 187, 0.4); }
-.cl-3 .candle-body  { height: 220px; background: linear-gradient(204deg, rgba(131, 109, 187, 0.7) 8%, rgba(208, 190, 255, 0) 111%); opacity: 0.85; }
-
-/* Col 4 — lime/dark mix */
-.cl-4 .candle-wick  { height: 45px; background: rgba(224, 254, 102, 0.3); }
-.cl-4 .candle-body  { height: 295px; background: linear-gradient(178deg, rgba(224, 254, 102, 0.6) -43%, rgba(224, 254, 102, 0) 74%), #2E272E; opacity: 0.65; }
-
-/* Col 5 — purple lavender */
-.cl-5 .candle-wick  { height: 38px; background: rgba(131, 109, 187, 0.4); }
-.cl-5 .candle-body  { height: 240px; background: linear-gradient(204deg, rgba(131, 109, 187, 0.6) 8%, rgba(208, 190, 255, 0) 111%); opacity: 0.7; }
-
-/* Col 6 — tallest, lime/dark */
-.cl-6 .candle-wick  { height: 32px; background: rgba(224, 254, 102, 0.3); }
-.cl-6 .candle-body  { height: 360px; background: linear-gradient(178deg, rgba(224, 254, 102, 0.5) -43%, rgba(224, 254, 102, 0) 74%), #2E272E; opacity: 0.55; }
-
-/* ── RIGHT SIDE — lime/dark palette ── */
-
-/* Col r1 — lime */
-.cr-1 .candle-wick  { height: 38px; background: rgba(224, 254, 102, 0.5); }
-.cr-1 .candle-body  { height: 230px; background: linear-gradient(178deg, rgba(224, 254, 102, 0.8) -43%, rgba(224, 254, 102, 0) 74%), #2E272E; }
-
-/* Col r2 — purple semi */
-.cr-2 .candle-wick  { height: 28px; background: rgba(131, 109, 187, 0.4); }
-.cr-2 .candle-body  { height: 150px; background: linear-gradient(204deg, rgba(131, 109, 187, 0.6) 8%, rgba(208, 190, 255, 0) 111%); opacity: 0.55; }
-
-/* Col r3 — lime */
-.cr-3 .candle-wick  { height: 35px; background: rgba(224, 254, 102, 0.5); }
-.cr-3 .candle-body  { height: 220px; background: linear-gradient(178deg, rgba(224, 254, 102, 0.8) -43%, rgba(224, 254, 102, 0) 74%), #2E272E; }
-
-/* Col r4 — purple semi */
-.cr-4 .candle-wick  { height: 42px; background: rgba(131, 109, 187, 0.4); }
-.cr-4 .candle-body  { height: 295px; background: linear-gradient(204deg, rgba(131, 109, 187, 0.6) 8%, rgba(208, 190, 255, 0) 111%); opacity: 0.55; }
-
-/* Col r5 — lime tall */
-.cr-5 .candle-wick  { height: 30px; background: rgba(224, 254, 102, 0.5); }
-.cr-5 .candle-body  { height: 280px; background: linear-gradient(178deg, rgba(224, 254, 102, 0.8) -43%, rgba(224, 254, 102, 0) 74%), #2E272E; }
-
-/* Col r6 — tallest, purple/blue */
-.cr-6 .candle-wick  { height: 36px; background: rgba(160, 100, 244, 0.5); }
-.cr-6 .candle-body  { height: 380px; background: linear-gradient(170.8deg, rgba(160, 100, 244, 0.9) -4%, rgba(112, 30, 226, 0) 75%), #1E0542; }
+.landing-candles-right { right: 0; }
 
 /* ==========================================================================
    RESPONSIVE
