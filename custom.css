@@ -282,4 +282,23 @@ img[alt="Buildmarkets"] {
   .landing-btn-secondary { width: 100%; justify-content: center; }
 }
 
+/* ==========================================================================
+   DASHBOARD BUTTON OVERRIDE
+   Match exact Figma design (Lime green background, black text, 10px radius)
+   ========================================================================== */
+a[href="https://dash.readme.com/to/tapp-engine"],
+a[href="https://dash.readme.com/to/tapp-engine"] button,
+a[href="https://dash.readme.com/to/tapp-engine"] div {
+  background-color: #E0FE66 !important;
+  color: #0F0E0F !important;
+  border-radius: 10px !important;
+  border: none !important;
+}
+
+a[href="https://dash.readme.com/to/tapp-engine"]:hover,
+a[href="https://dash.readme.com/to/tapp-engine"] button:hover,
+a[href="https://dash.readme.com/to/tapp-engine"] div:hover {
+  background-color: #ABDB07 !important;
+}
+
 
