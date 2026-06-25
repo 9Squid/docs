@@ -4,9 +4,13 @@
   "name": "Buildmarkets",
   "description": "Build, launch, & scale compliant investment products. Access Buildmarkets' API docs, SDKs, & tutorials to embed trading, fractional shares, & custody.",
   "colors": {
-    "primary": "#3E5FFE",
-    "light": "#8D98FF",
-    "dark": "#3549A3"
+    "primary": "#E0FE66",
+    "light": "#E0FE66",
+    "dark": "#ABDB07"
+  },
+  "modeToggle": {
+    "default": "dark",
+    "isHidden": false
   },
   "fonts": {
     "heading": {
