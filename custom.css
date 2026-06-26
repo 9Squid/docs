@@ -317,4 +317,24 @@ html body a[href*="dash.readme.com"]:hover {
   opacity: 1 !important;
 }
 
+/* ==========================================================================
+   CARD HOVER BORDERS (GREEN THEME)
+   Force card outlines and generic component hover borders to be Lime Green
+   ========================================================================== */
+html body .hover\:border-primary:hover,
+html body .dark\:hover\:border-primary:hover,
+html body .hover\:border-primary-light:hover,
+html body .hover\:border-primary-dark:hover,
+html body .group:hover .group-hover\:border-primary,
+html body .group:hover .dark\:group-hover\:border-primary {
+  border-color: #E0FE66 !important;
+}
+
+/* Fallback for generic card structures in Mintlify */
+html body a[class*="border"]:hover {
+  /* We only want to target card-like links that change border color on hover. 
+     Usually they have hover:border-primary. If that doesn't catch them, 
+     we can target Mintlify's specific card structure if needed. */
+}
+
 
