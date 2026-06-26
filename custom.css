@@ -286,13 +286,14 @@ img[alt="Buildmarkets"] {
 
 /* ==========================================================================
    GLOBAL MINTLIFY PRIMARY BUTTON FIX (GREEN/BLACK THEME)
-   Forces solid buttons and active elements to use the Lime Green Figma design.
+   Forces solid buttons and active elements to use the Figma design.
    ========================================================================== */
+/* LIGHT MODE COLORS */
 html body .bg-primary,
 html body .bg-primary-light,
 html body .bg-primary-dark,
 html body a[href*="dash.readme.com"] {
-  background-color: #E0FE66 !important;
+  background-color: #ABDB07 !important; /* Darker green for light mode */
   color: #0F0E0F !important;
   border-radius: 10px !important;
   box-shadow: none !important;
@@ -301,16 +302,16 @@ html body a[href*="dash.readme.com"] {
   opacity: 1 !important;
 }
 
-/* Sidebar and TOC active link styling (Green hover with black text) */
+/* Sidebar and TOC active link styling */
 html body .text-primary {
-  color: #ABDB07 !important; /* Darker green for text readability */
+  color: #7A9C00 !important; /* Darker green for text readability in light mode */
 }
 
 html body a.active,
 html body a[aria-current="page"],
 html body .active > a,
 html body .bg-primary\/10 {
-  background-color: #E0FE66 !important;
+  background-color: #ABDB07 !important; /* Darker green for light mode */
   color: #0F0E0F !important;
 }
 
@@ -321,39 +322,60 @@ html body .bg-primary\/10 * {
   color: #0F0E0F !important;
 }
 
-/* Force inner text and icons to be black */
 html body .bg-primary *,
 html body a[href*="dash.readme.com"] * {
   color: #0F0E0F !important;
   fill: #0F0E0F !important;
 }
 
-/* Hover state matching Figma */
-html body .bg-primary:hover,
-html body a[href*="dash.readme.com"]:hover {
-  background-color: #ABDB07 !important;
-  filter: none !important;
-  opacity: 1 !important;
-}
-
-/* ==========================================================================
-   CARD HOVER BORDERS (GREEN THEME)
-   Force card outlines and generic component hover borders to be Lime Green
-   ========================================================================== */
 html body .hover\:border-primary:hover,
 html body .dark\:hover\:border-primary:hover,
 html body .hover\:border-primary-light:hover,
 html body .hover\:border-primary-dark:hover,
 html body .group:hover .group-hover\:border-primary,
 html body .group:hover .dark\:group-hover\:border-primary {
+  border-color: #ABDB07 !important; /* Darker green for light mode hover borders */
+}
+
+/* Hover state for solid buttons */
+html body .bg-primary:hover,
+html body a[href*="dash.readme.com"]:hover {
+  background-color: #94C800 !important;
+}
+
+/* ==========================================================================
+   DARK MODE OVERRIDES
+   ========================================================================== */
+html.dark body .bg-primary,
+html.dark body .bg-primary-light,
+html.dark body .bg-primary-dark,
+html.dark body a[href*="dash.readme.com"] {
+  background-color: #E0FE66 !important; /* Bright lime green */
+}
+
+html.dark body .text-primary {
+  color: #ABDB07 !important; /* Darker green for text readability even in dark mode */
+}
+
+html.dark body a.active,
+html.dark body a[aria-current="page"],
+html.dark body .active > a,
+html.dark body .bg-primary\/10 {
+  background-color: #E0FE66 !important;
+}
+
+html.dark body .hover\:border-primary:hover,
+html.dark body .dark\:hover\:border-primary:hover,
+html.dark body .hover\:border-primary-light:hover,
+html.dark body .hover\:border-primary-dark:hover,
+html.dark body .group:hover .group-hover\:border-primary,
+html.dark body .group:hover .dark\:group-hover\:border-primary {
   border-color: #E0FE66 !important;
 }
 
-/* Fallback for generic card structures in Mintlify */
-html body a[class*="border"]:hover {
-  /* We only want to target card-like links that change border color on hover. 
-     Usually they have hover:border-primary. If that doesn't catch them, 
-     we can target Mintlify's specific card structure if needed. */
+html.dark body .bg-primary:hover,
+html.dark body a[href*="dash.readme.com"]:hover {
+  background-color: #ABDB07 !important;
 }
 
 
