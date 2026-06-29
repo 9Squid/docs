@@ -210,5 +210,5 @@ Full sandbox at `https://dev-tapp-api.tappengine.com`. Same endpoints as product
 - [Postman Collection](https://docs.buildmarkets.com/resources/postman)
 - [API Reference (OpenAPI)](https://docs.buildmarkets.com/api-reference/introduction)
 - [Changelog](https://docs.buildmarkets.com/changelog)
-- [Support](mailto:support@buildmarkets.com)
+- [Support](mailto:support@buildmarkets.ai)
 - [Status](https://status.buildmarkets.com)

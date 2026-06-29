@@ -41,15 +41,10 @@
   "navbar": {
     "links": [
       {
-        "href": "mailto:support@buildmarkets.com",
+        "href": "mailto:support@buildmarkets.ai",
         "label": "Support"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dash.readme.com/to/tapp-engine"
-    }
+    ]
   },
   "navigation": {
     "global": {
@@ -57,7 +52,7 @@
         {
           "anchor": "Buildmarkets",
           "icon": "globe",
-          "href": "https://buildmarkets.com"
+          "href": "/"
         },
         {
           "anchor": "Status",

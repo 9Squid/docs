@@ -35,4 +35,4 @@ Changes pushed to the default branch deploy automatically via the [Mintlify GitH
 
 - [Buildmarkets](https://buildmarkets.com)
 - [Status](https://status.buildmarkets.com)
-- [Support](mailto:support@buildmarkets.com)
+- [Support](mailto:support@buildmarkets.ai)
