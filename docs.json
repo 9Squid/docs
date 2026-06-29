@@ -3,6 +3,11 @@
   "theme": "mint",
   "name": "Buildmarkets",
   "description": "Build, launch, & scale compliant investment products. Access Buildmarkets' API docs, SDKs, & tutorials to embed trading, fractional shares, & custody.",
+  "seo": {
+    "metatags": {
+      "canonical": "https://docs.buildermarket.ai"
+    }
+  },
   "colors": {
     "primary": "#E0FE66",
     "light": "#ABDB07",
@@ -189,7 +194,9 @@
             "group": "Developer Tools",
             "pages": [
               "resources/postman",
-              "resources/ai-tools"
+              "resources/cli",
+              "resources/ai-tools",
+              "resources/mcp"
             ]
           },
           {
