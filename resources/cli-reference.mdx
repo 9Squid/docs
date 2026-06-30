@@ -4,7 +4,20 @@ sidebarTitle: "Command Reference"
 description: "Exhaustive command-line reference for every bm command, option, and subcommand."
 ---
 
-Every command, generated from the CLI itself. `REQUIRED` flags and positional `<args>` must be provided. Global flags (`--json`, `--table`, `--non-interactive`, `--yes`, `--debug`, `--watch`, `--api-key`/`--api-secret`) apply to every command — see the [CLI Developer Guide](/resources/cli).
+Every command in this reference is generated directly from the `bm` CLI binary. 
+
+* **Required parameters**: Both `REQUIRED` command flags and positional `<args>` must be provided for the command to execute.
+* **Global flags**: The following global flags apply to every single command:
+  * `--json` — Force JSON format output.
+  * `--table` — Force table format output.
+  * `--non-interactive` — Disable terminal prompts, loading animations, and colors (useful for CI/CD or agent scripts).
+  * `--yes` — Automatically bypass confirmation dialogs.
+  * `--debug` — Output detailed network logs and execution tracing to stderr.
+  * `--watch` — Poll the command on an interval and re-render the output.
+  * `--watch-interval <N>` — Set the polling interval in seconds (minimum 1, default 2).
+  * `--api-key <key>` / `--api-secret <secret>` — Pass partner M2M credentials directly for a single invocation.
+
+For a detailed explanation of authorization states, environment configuration, and scripting examples, refer to the [CLI Developer Guide](/resources/cli).
 
 ---
 
