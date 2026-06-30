@@ -34,5 +34,5 @@ Changes pushed to the default branch deploy automatically via the [Mintlify GitH
 ## Links
 
 - [Buildmarkets](https://buildmarkets.com)
-- [Status](https://status.buildmarkets.com)
+- [Status](https://tappengine.statuspage.io/)
 - [Support](mailto:support@buildmarkets.ai)

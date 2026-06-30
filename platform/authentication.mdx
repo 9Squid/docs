@@ -46,11 +46,18 @@ When generating an API key, you assign it one or more **scopes** that control wh
 
 > **Important:** "Assign only the scopes your application needs. A compromised key with narrow scopes limits your exposure."
 
-## Generating API keys
+## Requesting API keys
 
-### Via the Partner Dashboard
+### Via email request
 
-Log into the Buildmarkets Partner Dashboard, navigate to **Settings → API Keys**, and click **+ Generate Key**. Give the key a descriptive label (e.g., `"production-backend"` or `"sandbox-frontend"`) and select the required scopes.
+Buildmarkets API keys are provisioned and distributed via email. To request a new API key pair:
+
+1. Send an email request to the Buildmarkets team at [support@buildmarkets.ai](mailto:support@buildmarkets.ai) or contact your designated Relationship Manager.
+2. In your request, include the following details:
+   - **Environment**: Whether you need keys for `sandbox` (testing) or `production` (live).
+   - **Scopes**: The specific permission scopes your integration requires (see [API key scopes](#api-key-scopes)).
+   - **Label**: A descriptive label for the key pair (e.g., `sandbox-backend` or `prod-trading-engine`).
+3. Key requests are processed in regular batches. Once generated, your API key pair will be securely transmitted to your registered technical contact via encrypted email.
 
 ### Via the API
 

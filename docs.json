@@ -5,7 +5,7 @@
   "description": "Build, launch, & scale compliant investment products. Access Buildmarkets' API docs, SDKs, & tutorials to embed trading, fractional shares, & custody.",
   "seo": {
     "metatags": {
-      "canonical": "https://docs.buildermarket.ai"
+      "canonical": "https://docs.buildmarkets.ai"
     }
   },
   "colors": {
@@ -62,7 +62,7 @@
         {
           "anchor": "Status",
           "icon": "chart-simple",
-          "href": "https://status.buildmarkets.com"
+          "href": "https://tappengine.statuspage.io/"
         }
       ]
     },
@@ -195,6 +195,7 @@
             "pages": [
               "resources/postman",
               "resources/cli",
+              "resources/cli-reference",
               "resources/ai-tools",
               "resources/mcp"
             ]
