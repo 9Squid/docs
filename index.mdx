@@ -5,6 +5,36 @@ description: "White-label wealth management and brokerage infrastructure. Accoun
 mode: "custom"
 ---
 
+{/* =========================================================
+    HERO SECTION — dark CTA with candlestick decorations
+    ========================================================= */}
+<div className="landing-dark-cta" style={{ marginTop: '0' }}>
+
+  {/* Left candlesticks */}
+  <img src="/candles-left.png" className="landing-candles landing-candles-left" alt="" aria-hidden="true" />
+
+  {/* Hero text + buttons */}
+  <div className="landing-dark-cta-inner">
+    <h1 className="landing-dark-cta-heading">Build on a regulated stack in minutes</h1>
+    <p className="landing-dark-cta-sub">Sandbox is public. Pricing is published. No sales call required.</p>
+    <div className="landing-dark-cta-buttons">
+      <a className="landing-btn-primary" href="/get-started/welcome">Start building</a>
+      <a className="landing-btn-secondary" href="/get-started/sandbox">See sandbox</a>
+    </div>
+  </div>
+
+  {/* Right candlesticks */}
+  <img src="/candles-right.png" className="landing-candles landing-candles-right" alt="" aria-hidden="true" />
+
+</div>
+
+{/* =========================================================
+    MAIN CONTENT
+    ========================================================= */}
+<div className="landing-content">
+
+<h2 className="landing-h2">Get started in 4 steps</h2>
+
 <Steps>
   <Step title="Get your API credentials">
     Log into the Buildmarkets Partner Dashboard, navigate to **Settings → API Keys**, and generate a key pair. You'll use your `X-API-Key` and `X-API-Secret` headers on every request.
@@ -20,88 +50,64 @@ mode: "custom"
   </Step>
 </Steps>
 
-{/* Main Hero Section — matches Figma design */}
+<h2 className="landing-h2">Choose your integration path</h2>
 
-<div className="landing-dark-cta" style={{ marginTop: '0' }}>
-  {/* Left candlesticks — exact PNG export */}
+<CardGroup cols={2}>
+  <Card title="Self-Directed Investing" icon="chart-line" href="/get-started/quick-start-self-directed">
+    Let your users buy and sell stocks, ETFs, and fractional shares. You control the UI — Buildmarkets handles accounts, KYC, custody, and order routing.
 
-  <img src="/candles-left.png" className="landing-candles landing-candles-left" alt="" aria-hidden="true" />
+    **Best for:** Trading apps, invest tabs, stock gifting, round-ups.
+  </Card>
 
-  {/* Hero text + buttons */}
+  <Card title="Wealth Management" icon="chart-pie" href="/wealth">
+    Power advisor-managed and robo-advisory accounts with API-driven portfolio construction and rebalancing. Full wealth lifecycle through the API.
 
-  <div className="landing-dark-cta-inner">
-    <h1 className="landing-dark-cta-heading">Build on a regulated stack in minutes</h1>
-    <p className="landing-dark-cta-sub">Sandbox is public. Pricing is published. No sales call required.</p>
+    **Best for:** Robo-advisors, financial planner apps, employee benefits.
+  </Card>
+</CardGroup>
 
-    <div className="landing-dark-cta-buttons">
-      <a className="landing-btn-primary" href="/get-started/welcome">Start building</a>
-      <a className="landing-btn-secondary" href="/get-started/sandbox">See sandbox</a>
-    </div>
-  </div>
+<h2 className="landing-h2">Explore the platform</h2>
 
-  {/* Right candlesticks — exact PNG export */}
+<CardGroup cols={3}>
+  <Card title="Quick Start" icon="rocket" href="/get-started/welcome">
+    Get your first API call working in under 10 minutes.
+  </Card>
 
-  <img src="/candles-right.png" className="landing-candles landing-candles-right" alt="" aria-hidden="true" />
-</div>
+  <Card title="Platform Concepts" icon="layer-group" href="/platform/overview">
+    Understand accounts, balances, trading, and compliance.
+  </Card>
 
-<div className="landing-content">
-  <h2 className="landing-h2">Choose your integration path</h2>
+  <Card title="Guides" icon="map" href="/guides/overview">
+    Step-by-step integration guides for every workflow.
+  </Card>
 
-  <CardGroup cols={2}>
-    <Card title="Self-Directed Investing" icon="chart-line" href="/get-started/quick-start-self-directed">
-      Let your users buy and sell stocks, ETFs, and fractional shares. You control the UI — Buildmarkets handles accounts, KYC, custody, and order routing.
+  <Card title="Webhooks" icon="webhook" href="/platform/webhooks">
+    Real-time event notifications for account, trading, and funding activity.
+  </Card>
 
-      **Best for:** Trading apps, invest tabs, stock gifting, round-ups.
-    </Card>
+  <Card title="FIX Gateway" icon="bolt" href="/fix-gateway/fix-gateway-overview">
+    FIX 4.4 order management for partners with their own OMS or algorithmic trading infrastructure.
+  </Card>
 
-    <Card title="Wealth Management" icon="chart-pie" href="/wealth">
-      Power advisor-managed and robo-advisory accounts with API-driven portfolio construction and rebalancing. Full wealth lifecycle through the API.
+  <Card title="Changelog" icon="clock-rotate-left" href="/changelog">
+    Latest API updates, new features, and deprecations.
+  </Card>
+</CardGroup>
 
-      **Best for:** Robo-advisors, financial planner apps, employee benefits.
-    </Card>
-  </CardGroup>
+<h2 className="landing-h2">Developer resources</h2>
 
-  <h2 className="landing-h2">Explore the platform</h2>
+<CardGroup cols={3}>
+  <Card title="Postman Collection" icon="cloud" href="/resources/postman">
+    Pre-built requests for every endpoint.
+  </Card>
 
-  <CardGroup cols={3}>
-    <Card title="Quick Start" icon="rocket" href="/get-started/welcome">
-      Get your first API call working in under 10 minutes.
-    </Card>
+  <Card title="Error Reference" icon="triangle-exclamation" href="/resources/error-codes">
+    Full catalog of error codes and troubleshooting.
+  </Card>
 
-    <Card title="Platform Concepts" icon="layer-group" href="/platform/overview">
-      Understand accounts, balances, trading, and compliance.
-    </Card>
+  <Card title="AI-Assisted Development" icon="robot" href="/resources/ai-tools">
+    Integrate with Claude Code, Cursor, or Windsurf.
+  </Card>
+</CardGroup>
 
-    <Card title="Guides" icon="map" href="/guides/overview">
-      Step-by-step integration guides for every workflow.
-    </Card>
-
-    <Card title="Webhooks" icon="webhook" href="/platform/webhooks">
-      Real-time event notifications for account, trading, and funding activity.
-    </Card>
-
-    <Card title="FIX Gateway" icon="bolt" href="/fix-gateway/fix-gateway-overview">
-      FIX 4.4 order management for partners with their own OMS or algorithmic trading infrastructure.
-    </Card>
-
-    <Card title="Changelog" icon="clock-rotate-left" href="/changelog">
-      Latest API updates, new features, and deprecations.
-    </Card>
-  </CardGroup>
-
-  <h2 className="landing-h2">Developer resources</h2>
-
-  <CardGroup cols={3}>
-    <Card title="Postman Collection" icon="cloud" href="/resources/postman">
-      Pre-built requests for every endpoint.
-    </Card>
-
-    <Card title="Error Reference" icon="triangle-exclamation" href="/resources/error-codes">
-      Full catalog of error codes and troubleshooting.
-    </Card>
-
-    <Card title="AI-Assisted Development" icon="robot" href="/resources/ai-tools">
-      Integrate with Claude Code, Cursor, or Windsurf.
-    </Card>
-  </CardGroup>
 </div>
