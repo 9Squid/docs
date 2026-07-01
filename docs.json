@@ -142,6 +142,29 @@
         ]
       },
       {
+        "tab": "CLI",
+        "groups": [
+          {
+            "group": "Developer Tools",
+            "pages": [
+              "resources/cli",
+              "resources/cli-reference"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "MCP",
+        "groups": [
+          {
+            "group": "Developer Tools",
+            "pages": [
+              "resources/mcp"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Wealth Management",
         "pages": [
           "wealth"
@@ -181,29 +204,6 @@
         ]
       },
       {
-        "tab": "CLI",
-        "groups": [
-          {
-            "group": "Developer Tools",
-            "pages": [
-              "resources/cli",
-              "resources/cli-reference"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "MCP",
-        "groups": [
-          {
-            "group": "Developer Tools",
-            "pages": [
-              "resources/mcp"
-            ]
-          }
-        ]
-      },
-      {
         "tab": "Changelog",
         "icon": "clock-rotate-left",
         "pages": [
@@ -217,7 +217,10 @@
             "group": "Developer Tools",
             "pages": [
               "resources/postman",
-              "resources/ai-tools"
+              "resources/cli",
+              "resources/cli-reference",
+              "resources/ai-tools",
+              "resources/mcp"
             ]
           },
           {
