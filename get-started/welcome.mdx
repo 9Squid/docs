@@ -35,6 +35,23 @@ The Buildmarkets documentation is organized into two main areas:
 - **Documents** — Retrieve, email, and upload account documents, tax forms, and statements.
 - **Webhooks** — Subscribe to real-time event notifications for orders, accounts, and funding.
 
+## Get started in 4 steps
+
+<Steps>
+  <Step title="Request your API credentials">
+    Email [support@buildmarkets.ai](mailto:support@buildmarkets.ai) to request a key pair. Include your environment (`sandbox` or `production`), the permission scopes you need, and a descriptive label. Key requests are processed in batches and delivered securely to your registered technical contact via encrypted email. See [Authentication](/platform/authentication) for the full request process.
+  </Step>
+  <Step title="Test in the sandbox">
+    Point your requests at `https://dev-tapp-api.tappengine.com`. The sandbox supports every endpoint production does — with simulated KYC, order fills, and funding transfers so no real money moves.
+  </Step>
+  <Step title="Follow the quickstart">
+    Walk through creating an investor account, submitting KYC, linking a bank, and placing your first order in under 15 minutes.
+  </Step>
+  <Step title="Go live">
+    Switch your base URL to `https://api.tappengine.com`, complete the [partner checklist](/get-started/go-live), and start serving real customers.
+  </Step>
+</Steps>
+
 ## Key areas
 
 ### Base URLs
@@ -48,7 +65,7 @@ The Buildmarkets documentation is organized into two main areas:
 
 ### Authentication
 
-All requests are authenticated using your `X-API-Key` and `X-API-Secret` headers. You generate API keys from the Buildmarkets Partner Dashboard or via the API Keys endpoint.
+All requests are authenticated using your `X-API-Key` and `X-API-Secret` headers. API keys are provisioned via email request — see [Authentication](/platform/authentication) for details on how to request and manage keys.
 
 ### Versioning
 

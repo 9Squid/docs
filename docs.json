@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Buildmarkets",
-  "description": "Build, launch, & scale compliant investment products. Access Buildmarkets' API docs, SDKs, & tutorials to embed trading, fractional shares, & custody.",
+  "description": "Build, launch, & scale compliant investment products. Access Buildmarkets' API docs, CLI, MCP tools & tutorials to embed trading, fractional shares, & custody.",
   "seo": {
     "metatags": {
       "canonical": "https://docs.buildmarkets.ai"
@@ -46,7 +46,7 @@
   "navbar": {
     "links": [
       {
-        "href": "mailto:support@buildmarkets.ai",
+        "href": "/resources/support",
         "label": "Support"
       }
     ]
@@ -181,6 +181,29 @@
         ]
       },
       {
+        "tab": "CLI",
+        "groups": [
+          {
+            "group": "Developer Tools",
+            "pages": [
+              "resources/cli",
+              "resources/cli-reference"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "MCP",
+        "groups": [
+          {
+            "group": "Developer Tools",
+            "pages": [
+              "resources/mcp"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Changelog",
         "icon": "clock-rotate-left",
         "pages": [
@@ -194,10 +217,7 @@
             "group": "Developer Tools",
             "pages": [
               "resources/postman",
-              "resources/cli",
-              "resources/cli-reference",
-              "resources/ai-tools",
-              "resources/mcp"
+              "resources/ai-tools"
             ]
           },
           {
@@ -219,9 +239,9 @@
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/buildmarkets",
-      "github": "https://github.com/buildmarkets",
-      "linkedin": "https://www.linkedin.com/company/buildmarkets"
+      "x": "https://x.com/tapppengine",
+      "github": "https://github.com/tappengine",
+      "linkedin": "https://www.linkedin.com/company/tappengine"
     }
   },
   "contextual": {
