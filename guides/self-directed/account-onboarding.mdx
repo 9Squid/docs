@@ -6,7 +6,7 @@ description: "Full field reference and request schema for creating a brokerage a
 
 ## Endpoint
 
-```
+```text
 POST /v1/accounts
 ```
 
@@ -19,30 +19,30 @@ The minimum required fields to create an account are: `contact` (email, address,
 ### `contact` object
 
 | Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `email_address` | string | ✅ | Primary email address |
-| `phone_number` | string | | Phone with country code (e.g. `+15125550100`) |
-| `street_address` | string[] | | Street address lines |
-| `unit` | string | | Apartment, suite, or unit number |
+| `phone_number` | string |  | Phone with country code (e.g. `+15125550100`) |
+| `street_address` | string\[\] |  | Street address lines |
+| `unit` | string |  | Apartment, suite, or unit number |
 | `city` | string | ✅ | City |
 | `state` | string | ✅ | 2-letter state code (e.g. `TX`) |
 | `postal_code` | string | ✅ | ZIP code (5 or 9 digits) |
-| `country` | string | | ISO 2-letter country code. Defaults to `US` |
+| `country` | string |  | ISO 2-letter country code. Defaults to `US` |
 
 ### `identity` object
 
 | Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `given_name` | string | ✅ | Legal first name |
-| `middle_name` | string | | Middle name or initial |
+| `middle_name` | string |  | Middle name or initial |
 | `family_name` | string | ✅ | Legal last name |
 | `date_of_birth` | string | ✅ | Date of birth in `YYYY-MM-DD` format |
-| `tax_id` | string | ✅ | SSN (US residents) or EIN. 9–11 characters, dashes optional. |
-| `tax_id_type` | string | | Defaults to `US_SSN`. Other values: `US_EIN` |
-| `country_of_citizenship` | string | | ISO country code. Defaults to `US` |
-| `country_of_birth` | string | | ISO country code of birth country |
-| `country_of_tax_residence` | string | | ISO country code for tax residence. Defaults to `US` |
-| `funding_source` | string[] | | Sources of investment funds (e.g. `["employment_income"]`) |
+| `tax_id` | string | ✅ | SSN or EIN (must be 9 digits for US tax IDs, dashes optional). Foreign identification numbers (`FIN`) may be alphanumeric. |
+| `tax_id_type` | string |  | Defaults to `USA_SSN`. Other values: `USA_EIN`, `FIN` (foreign identification number for non-US persons) |
+| `country_of_citizenship` | string |  | ISO country code. Defaults to `US` |
+| `country_of_birth` | string |  | ISO country code of birth country |
+| `country_of_tax_residence` | string |  | ISO country code for tax residence. Defaults to `US` |
+| `funding_source` | string\[\] |  | Sources of investment funds (e.g. `["employment_income"]`) |
 
 ### `disclosures` object
 
@@ -50,7 +50,7 @@ Regulatory disclosures required by FINRA. All fields default to `false` if omitt
 
 ### `agreements` array
 
-Each agreement must be captured with a timestamp and optionally IP address. The `customer_agreement` is required for all accounts; `margin_agreement` is required if `margin_enabled = true`; `options_agreement` is required if `options_level > 0`.
+Each agreement must be captured with a timestamp and optionally IP address. The `customer_agreement` is required for all accounts; `margin_agreement` is required if `margin_enabled = true`; `options_agreement` is required if `requested_option_level > 0`.
 
 ```json
 "agreements": [ { "agreement": "customer_agreement", "signed_at": "2025-06-01T12:00:00Z", "ip_address": "203.0.113.42" } ]
@@ -58,15 +58,29 @@ Each agreement must be captured with a timestamp and optionally IP address. The 
 
 ### `investment_profile` object
 
-Required: `risk_tolerance` (`conservative`/`moderate`/`aggressive`), `investment_objective` (`growth`/`income`/`speculation`/`capital_preservation`/`other`), `annual_income_range`, `net_worth_range`, `liquid_net_worth_range`. Optional: `liquidity_needs`, `time_horizon` (`short`/`average`/`long`), `years_trading_stocks`, `years_trading_options`, `stock_experience`, `options_experience`, `income_source`, `funds_source`, `investment_plan`.
+Required: `risk_tolerance` (`conservative`/`moderate`/`aggressive`), `investment_objective` (`growth`/`income`/`speculation`/`preservation`), `annual_income_range`, `net_worth_range`, `liquid_net_worth_range`. Optional: `liquidity_needs` (`low`/`medium`/`high`), `time_horizon` (`short`/`medium`/`long`), `years_trading_stocks`, `years_trading_options`, `stock_experience`, `options_experience`, `income_source`, `funds_source`, `investment_plan`.
 
 ### `trading_configurations` object (optional)
 
-`options_level` (0=none, 1=covered calls, 2=spreads, 3=full); `margin_enabled` (requires `margin_agreement`).
+`margin_enabled` (requires `margin_agreement`); `short_selling_enabled`. Options access is requested via the top-level `requested_option_level` field (0–4, 0 = no options); the granted level is decided by the approval engine, never by the partner.
+
+### `documents` array (identity verification documents)
+
+Government ID image(s) used for identity verification as part of the KYC process. Each entry is one base64-encoded image:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `document_type` | string |  | Defaults to `identity_verification` |
+| `document_sub_type` | string | ✅ | `passport`, `id_card`, or `drivers_license` |
+| `side` | string |  | `front` or `back` — required for two-sided IDs |
+| `content` | string | ✅ | Base64-encoded image data |
+| `mime_type` | string |  | Defaults to `image/jpeg` |
+
+A `passport` requires one entry; `id_card` and `drivers_license` require two entries (one `front`, one `back`). See [KYC Verification](/guides/self-directed/kyc-verification) for the full verification flow.
 
 ### Other optional top-level fields
 
-`account_type` (`individual` default or `joint`), `trusted_contact`, `employment`, `mailing_address`, `joint_owner` (required when `account_type` is `joint`), `dividend_reinvestment`, `discretionary_account`, `registered_rep_code`, `advisor_code`, `corr_metadata` (freeform, up to 255 chars).
+`account_type` (`individual` default, `joint`, `ira_traditional`, `ira_roth`, or `custodial`), `trusted_contact`, `employment`, `mailing_address`, `joint_owner` (required when `account_type` is `joint`), `requested_option_level`, `dividend_reinvestment`, `discretionary_account`, `registered_rep_code`, `advisor_code`, `corr_metadata` (freeform, up to 255 chars).
 
 ## Complete Example Request
 
@@ -74,11 +88,15 @@ Required: `risk_tolerance` (`conservative`/`moderate`/`aggressive`), `investment
 {
   "account_type": "individual",
   "contact": { "email_address": "jane@example.com", "phone_number": "+15125550100", "street_address": ["123 Main Street"], "city": "Austin", "state": "TX", "postal_code": "78701", "country": "US" },
-  "identity": { "given_name": "Jane", "middle_name": "M", "family_name": "Doe", "date_of_birth": "1990-04-15", "tax_id": "111-22-0001", "tax_id_type": "US_SSN", "country_of_citizenship": "US", "funding_source": ["employment_income"] },
+  "identity": { "given_name": "Jane", "middle_name": "M", "family_name": "Doe", "date_of_birth": "1990-04-15", "tax_id": "111-22-3344", "tax_id_type": "USA_SSN", "country_of_citizenship": "US", "funding_source": ["employment_income"] },
   "disclosures": { "is_control_person": false, "is_affiliated_exchange_or_finra": false, "is_politically_exposed": false, "immediate_family_exposed": false },
   "agreements": [ { "agreement": "customer_agreement", "signed_at": "2025-06-01T12:00:00Z", "ip_address": "203.0.113.42" } ],
   "investment_profile": { "risk_tolerance": "moderate", "investment_objective": "growth", "annual_income_range": "50000_to_100000", "net_worth_range": "100000_to_250000", "liquid_net_worth_range": "50000_to_100000", "time_horizon": "long" },
-  "trading_configurations": { "options_level": 0, "margin_enabled": false },
+  "trading_configurations": { "margin_enabled": false },
+  "documents": [
+    { "document_type": "identity_verification", "document_sub_type": "drivers_license", "side": "front", "content": "<base64-encoded image>", "mime_type": "image/jpeg" },
+    { "document_type": "identity_verification", "document_sub_type": "drivers_license", "side": "back", "content": "<base64-encoded image>", "mime_type": "image/jpeg" }
+  ],
   "dividend_reinvestment": true,
   "corr_metadata": "internal-user-id-98765"
 }
@@ -86,32 +104,44 @@ Required: `risk_tolerance` (`conservative`/`moderate`/`aggressive`), `investment
 
 ## Response
 
-On success, returns `201 Created` with the full `AccountResponse` object including the generated `id` and initial `status`.
+On success, returns `201 Created` with the full `AccountResponse` object including the generated `id`, the owning `user_id`, and initial `status`.
 
 ```json
 {
   "id": "b3f2c9a1-4d5e-4a2f-8b3c-1e2d3f4a5b6c",
-  "account_number": "ACC123456789",
+  "user_id": "7f6e5d4c-3b2a-4190-8f7e-6d5c4b3a2910",
+  "account_number": null,
   "status": "SUBMITTED",
-  "kyc_status": "SUBMITTED",
+  "kyc_status": "submitted",
   "currency": "USD",
-  "last_equity": "0.00",
   "created_at": "2025-06-01T12:00:05Z",
-  "account_type": "individual",
-  "enabled_assets": ["equity"]
+  "account_type": "individual"
 }
 ```
 
-> **Note:** Newly created accounts start in `SUBMITTED` status. In the sandbox with SSN suffix `0001`, KYC completes rapidly and transitions to `ACTIVE`. In production, KYC processing typically completes in seconds to minutes, but some accounts require manual review.
+> **Note:** Newly created accounts start in `SUBMITTED` status while identity documents go through KYC review. `account_number` is `null` until the account is booked on the clearing system after verification passes. KYC processing typically completes in seconds to minutes, but some accounts require manual review (`action_required`).
 
 ## Handling KYC Outcomes
 
-Use Webhooks to receive real-time notifications when an account's `status` or `kyc_status` changes. Subscribe to the `account.updated` event and check the new status in the payload. Alternatively, poll `GET /v1/accounts/{accountId}` and check `kyc_status` until it reaches `APPROVED` or `REJECTED`.
+Use Webhooks to receive real-time notifications when an account's `status` or `kyc_status` changes. Subscribe to the `account.updated` event and check the new status in the payload. Alternatively, poll `GET /v1/accounts/{accountId}` and check `kyc_status` until it reaches `approved` or `rejected`.
+
+## Opening Additional Accounts for a Verified User
+
+Keep the `user_id` from the account response. Once the user's KYC is approved, you can open further accounts for the same person — for example an `ira_roth` alongside their `individual` account — with a minimal request:
+
+```bash
+curl -X POST https://api.tappengine.com/v1/users/7f6e5d4c-3b2a-4190-8f7e-6d5c4b3a2910/accounts \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{ "account_type": "ira_roth" }'
+```
+
+Only `account_type` is required — identity is locked to the stored, verified user profile (sending an `identity` object is rejected), optional sections override the stored values, and document verification is skipped. If the user's KYC is not yet approved, the request fails with `409 USER_KYC_NOT_APPROVED`.
 
 ## Common Validation Errors
 
 | Error | Cause |
-|-------|-------|
+| --- | --- |
 | `MISSING_REQUIRED_FIELD: contact.email_address` | Email address omitted from `contact` |
 | `MISSING_REQUIRED_FIELD: identity.tax_id` | SSN omitted from `identity` |
 | `VALIDATION_ERROR: identity.date_of_birth` | Date not in `YYYY-MM-DD` format |

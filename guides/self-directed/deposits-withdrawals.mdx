@@ -6,8 +6,8 @@ description: "Initiate ACH deposits and withdrawals against an approved relation
 
 Once a user has an [approved ACH relationship](/guides/self-directed/bank-linking), they can move money between their external bank account and their Buildmarkets brokerage account. Buildmarkets exposes two endpoints for this:
 
-*   **Deposits** (`POST .../funding/deposits`) — pull funds from the bank into the brokerage account
-*   **Withdrawals** (`POST .../funding/withdrawals`) — push settled cash from the brokerage account back to the bank
+- **Deposits** (`POST .../funding/deposits`) — pull funds from the bank into the brokerage account
+- **Withdrawals** (`POST .../funding/withdrawals`) — push settled cash from the brokerage account back to the bank
 
 Both transfer types are ACH-based and subject to standard ACH settlement timelines. All amounts must be expressed as strings with exactly two decimal places (e.g., `"1000.00"`).
 
@@ -15,89 +15,89 @@ Both transfer types are ACH-based and subject to standard ACH settlement timelin
 
 All deposits and withdrawals progress through the same status states. You can track these via the [Funding Activity](/guides/self-directed/deposits-withdrawals) endpoints or by listening to webhook events.
 
-```
+```text
       POST deposit/withdrawal
              │
       ┌──────▼──────┐
       │             │
-      │   PENDING   │  ◄─── Transfer submitted to ACH network
+      │   pending   │  ◄─── Transfer submitted to ACH network
       │             │
       └──────┬──────┘
              │  ACH initiated
       ┌──────▼──────┐
       │             │
-      │  QUEUED /   │  ◄─── Sent to clearing; awaiting settlement
-      │  SENT       │
+      │    sent     │  ◄─── Sent to clearing; awaiting settlement
       │             │
       └──────┬──────┘
              │
         ┌────┴────┐
         │         │
-    ┌───▼───┐ ┌──▼──────┐
-    │       │ │         │
-    │SETTLED│ │RETURNED │  ◄─── NSF, closed account, or bank rejection
-    │       │ │         │
-    └───────┘ └─────────┘
+    ┌───▼─────┐ ┌─▼───────┐
+    │         │ │         │
+    │completed│ │returned │  ◄─── NSF, closed account, or bank rejection
+    │         │ │         │
+    └─────────┘ └─────────┘
 ```
 
 | Status | Description |
-|--------|-------------|
-| `PENDING` | Transfer has been submitted and is awaiting ACH initiation |
-| `QUEUED` | Transfer has been queued for the next ACH batch |
-| `SENT` | Transfer has been sent to the ACH network and is in transit |
-| `SETTLED` | Funds have successfully moved; transfer is complete |
-| `RETURNED` | The ACH transfer was returned by the bank (e.g., NSF, closed account) |
-| `CANCELLED` | Transfer was cancelled before clearing |
+| --- | --- |
+| `pending` | Transfer has been submitted and is awaiting ACH initiation |
+| `sent` | Transfer has been sent to the ACH network and is in transit |
+| `completed` | Funds have successfully moved; transfer is complete |
+| `returned` | The ACH transfer was returned by the bank (e.g., NSF, closed account) |
+| `cancelled` | Transfer was cancelled before clearing |
+| `failed` | Transfer could not be processed |
 
 > **Settlement timing:** "Standard ACH deposits typically settle in 1–3 business days. Buildmarkets may apply **instant buying power** for deposits up to a configured limit, allowing users to trade before funds fully settle."
 
 ## Endpoints
 
 | Method | Path | Description |
-|--------|------|-------------|
+| --- | --- | --- |
 | `POST` | `/v1/accounts/{accountId}/funding/deposits` | Initiate an ACH deposit into the brokerage account |
 | `POST` | `/v1/accounts/{accountId}/funding/withdrawals` | Initiate an ACH withdrawal from the brokerage account |
 
 ## Initiate a deposit
 
-Pulls funds from the user's external bank account into their Buildmarkets brokerage account. The specified ACH relationship must be in `APPROVED` status.
+Pulls funds from the user's external bank account into their Buildmarkets brokerage account. The specified ACH relationship must be in `approved` status.
 
 ### `POST /v1/accounts/{accountId}/funding/deposits`
 
 #### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `accountId` | string (UUID) | ✅ | The Buildmarkets account to deposit funds into |
 
 #### Request body
 
 | Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `ach_relationship_id` | string (UUID) | ✅ | ID of an `APPROVED` ACH relationship to pull funds from |
+| --- | --- | --- | --- |
+| `ach_relationship_id` | string (UUID) | ✅ | ID of an `approved` ACH relationship to pull funds from |
 | `amount` | string | ✅ | Dollar amount to deposit. Must match pattern `^\d+\.\d{2}$` (e.g., `"1000.00"`) |
 | `description` | string | ❌ | Optional memo visible in funding activity (e.g., `"Initial deposit"`) |
 
 #### Response body (`201 Created`)
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | string (UUID) | Unique identifier for this funding activity record |
 | `account_id` | string (UUID) | The Buildmarkets account receiving the funds |
 | `ach_relationship_id` | string (UUID) | The ACH relationship used for this transfer |
-| `type` | string | `DEPOSIT` |
+| `type` | string | `deposit` |
 | `amount` | string | Dollar amount transferred (e.g., `"1000.00"`) |
-| `status` | string | Initial status: `PENDING` |
+| `currency` | string | Currency of the transfer (`USD`) |
+| `status` | string | Initial status: `pending` |
 | `description` | string \| null | Memo provided at creation |
+| `settlement_date` | string \| null | Expected/actual settlement date; null until known |
 | `created_at` | string (ISO 8601) | Timestamp when the deposit was initiated |
 | `updated_at` | string (ISO 8601) | Timestamp of the last status change |
-| `settled_at` | string (ISO 8601) \| null | Timestamp when funds fully settled; null until `SETTLED` |
 
 #### Example request
 
 ```bash
 curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f/funding/deposits \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY" \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "ach_relationship_id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
@@ -113,13 +113,14 @@ curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b
   "id": "f1a2b3c4-d5e6-7f8a-9b0c-d1e2f3a4b5c6",
   "account_id": "b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f",
   "ach_relationship_id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
-  "type": "DEPOSIT",
+  "type": "deposit",
   "amount": "2500.00",
-  "status": "PENDING",
+  "currency": "USD",
+  "status": "pending",
   "description": "Initial deposit",
+  "settlement_date": null,
   "created_at": "2026-03-15T11:00:00Z",
-  "updated_at": "2026-03-15T11:00:00Z",
-  "settled_at": null
+  "updated_at": "2026-03-15T11:00:00Z"
 }
 ```
 
@@ -132,14 +133,14 @@ Pushes settled cash from the user's Buildmarkets brokerage account back to their
 #### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `accountId` | string (UUID) | ✅ | The Buildmarkets account to withdraw funds from |
 
 #### Request body
 
 | Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `ach_relationship_id` | string (UUID) | ✅ | ID of an `APPROVED` ACH relationship to push funds to |
+| --- | --- | --- | --- |
+| `ach_relationship_id` | string (UUID) | ✅ | ID of an `approved` ACH relationship to push funds to |
 | `amount` | string | Conditional | Dollar amount to withdraw. Required unless `withdraw_full_balance` is `true`. Pattern: `^\d+\.\d{2}$` |
 | `withdraw_full_balance` | boolean | ❌ | If `true`, withdraws the entire settled cash balance. Omit `amount` when using this flag |
 | `description` | string | ❌ | Optional memo (e.g., `"Monthly withdrawal"`) |
@@ -150,7 +151,7 @@ Pushes settled cash from the user's Buildmarkets brokerage account back to their
 For IRA accounts, additional fields are required to classify the distribution for tax reporting purposes.
 
 | Field | Type | Required for IRA | Description |
-|-------|------|------------------|-------------|
+| --- | --- | --- | --- |
 | `ira_distribution_type` | string | ✅ | Classification of the IRA distribution (e.g., `"NORMAL"`, `"PREMATURE"`) |
 | `ira_tax_code` | string | ✅ | IRS tax code for the distribution |
 | `ira_year` | integer | ✅ | Tax year to attribute the distribution to (e.g., `2026`) |
@@ -161,24 +162,24 @@ For IRA accounts, additional fields are required to classify the distribution fo
 #### Response body (`201 Created`)
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | string (UUID) | Unique identifier for this funding activity record |
 | `account_id` | string (UUID) | The Buildmarkets account funds are being withdrawn from |
 | `ach_relationship_id` | string (UUID) | The ACH relationship receiving the funds |
-| `type` | string | `WITHDRAWAL` |
+| `type` | string | `withdrawal` |
 | `amount` | string | Dollar amount withdrawn (e.g., `"500.00"`) |
-| `fee_amount` | string \| null | Fee amount if provided |
-| `status` | string | Initial status: `PENDING` |
+| `currency` | string | Currency of the transfer (`USD`) |
+| `status` | string | Initial status: `pending` |
 | `description` | string \| null | Memo provided at creation |
+| `settlement_date` | string \| null | Expected/actual settlement date; null until known |
 | `created_at` | string (ISO 8601) | Timestamp when the withdrawal was initiated |
 | `updated_at` | string (ISO 8601) | Timestamp of the last status change |
-| `settled_at` | string (ISO 8601) \| null | Timestamp when funds settled at the destination bank |
 
 #### Example request — standard withdrawal
 
 ```bash
 curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f/funding/withdrawals \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY" \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "ach_relationship_id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
@@ -194,14 +195,14 @@ curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b
   "id": "c4d5e6f7-a8b9-0c1d-2e3f-4a5b6c7d8e9f",
   "account_id": "b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f",
   "ach_relationship_id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
-  "type": "WITHDRAWAL",
+  "type": "withdrawal",
   "amount": "500.00",
-  "fee_amount": null,
-  "status": "PENDING",
+  "currency": "USD",
+  "status": "pending",
   "description": "Monthly withdrawal",
+  "settlement_date": null,
   "created_at": "2026-03-15T14:00:00Z",
-  "updated_at": "2026-03-15T14:00:00Z",
-  "settled_at": null
+  "updated_at": "2026-03-15T14:00:00Z"
 }
 ```
 
@@ -209,7 +210,7 @@ curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b
 
 ```bash
 curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f/funding/withdrawals \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY" \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "ach_relationship_id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
@@ -222,7 +223,7 @@ curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b
 
 ```bash
 curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f/funding/withdrawals \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY" \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "ach_relationship_id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
@@ -239,13 +240,13 @@ curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b
 ## Common errors
 
 | HTTP Status | Error | Cause |
-|-------------|-------|-------|
+| --- | --- | --- |
 | `400` | `INVALID_AMOUNT` | Amount does not match the `^\d+\.\d{2}$` pattern, or is zero |
 | `400` | `AMOUNT_REQUIRED` | Neither `amount` nor `withdraw_full_balance` was provided |
 | `400` | `INVALID_IRA_FIELDS` | IRA distribution fields are incomplete or contain invalid values |
 | `404` | `ACCOUNT_NOT_FOUND` | The `accountId` does not exist or is inaccessible |
 | `404` | `ACH_RELATIONSHIP_NOT_FOUND` | The `ach_relationship_id` does not exist for this account |
-| `409` | `ACH_RELATIONSHIP_NOT_APPROVED` | The referenced ACH relationship is not in `APPROVED` status |
+| `409` | `ACH_RELATIONSHIP_NOT_APPROVED` | The referenced ACH relationship is not in `approved` status |
 | `422` | `INSUFFICIENT_FUNDS` | Withdrawal amount exceeds settled cash balance |
 | `422` | `ACCOUNT_NOT_ACTIVE` | The Buildmarkets account is not in `ACTIVE` status |
 
@@ -254,21 +255,19 @@ curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b
 Subscribe to these events to track transfer status in real time without polling.
 
 | Event | Fired when |
-|-------|-----------|
-| `funding.deposit.pending` | Deposit has been accepted and is queued for ACH |
-| `funding.deposit.settled` | Deposit has fully cleared and funds are available |
-| `funding.deposit.returned` | Deposit was returned by the bank |
-| `funding.withdrawal.pending` | Withdrawal has been accepted and is queued for ACH |
-| `funding.withdrawal.settled` | Withdrawal has fully cleared at the destination bank |
-| `funding.withdrawal.returned` | Withdrawal was returned by the bank |
+| --- | --- |
+| `funding.deposit_completed` | Deposit has settled and funds are available |
+| `funding.deposit_returned` | Deposit was returned by the bank (includes the NACHA return code) |
+| `funding.withdrawal_completed` | Withdrawal has settled at the destination bank |
+| `funding.withdrawal_returned` | Withdrawal was returned by the bank |
 
 See [Webhook Events Reference](/guides/operations/webhook-setup) for full payload schemas.
 
 ## Next steps
 
-*   [Funding Activity →](/guides/self-directed/deposits-withdrawals) — Query and filter the history of all transfers on an account
-*   [ACH Relationships →](/guides/self-directed/bank-linking) — Set up the bank link required before initiating transfers
-*   [Webhooks Overview →](/platform/webhooks) — Receive real-time notifications as transfer status changes
+- [Funding Activity →](/guides/self-directed/deposits-withdrawals) — Query and filter the history of all transfers on an account
+- [ACH Relationships →](/guides/self-directed/bank-linking) — Set up the bank link required before initiating transfers
+- [Webhooks Overview →](/platform/webhooks) — Receive real-time notifications as transfer status changes
 
 Updated 3 months ago
 
@@ -287,14 +286,9 @@ Two primary endpoints exist:
 
 ### Listing Funding Activity
 
-The list endpoint returns paginated results ordered by most recent first. Required parameters include the account UUID. Optional query filters include:
+The list endpoint returns cursor-paginated results. Required parameters include the account UUID; use `cursor` and `limit` query parameters to page through results.
 
-- `status`: Transfer state (PENDING, QUEUED, SENT, SETTLED, RETURNED, CANCELLED)
-- `type`: DEPOSIT or WITHDRAWAL
-- `start_date` and `end_date`: ISO 8601 date ranges
-- `page` and `per_page`: Pagination controls (default 25, max 100 per page)
-
-Response objects contain transfer identification, amounts, status transitions, descriptions, and ACH return codes when applicable.
+Response objects contain transfer identification, amounts, current status (`pending`, `sent`, `completed`, `cancelled`, `returned`, `failed`), type (`deposit` or `withdrawal`), descriptions, and settlement dates.
 
 ### Single Record Retrieval
 
@@ -309,7 +303,7 @@ The system uses standard NACHA codes when transfers are rejected. Common example
 - "R03" (No Account/Unable to Locate)
 - "R10" (Customer Claims Unauthorized)
 
-Webhook events (`funding.deposit.returned` or `funding.withdrawal.returned`) notify applications when transfers fail, including both code and human-readable explanation.
+Webhook events (`funding.deposit_returned` or `funding.withdrawal_returned`) notify applications when transfers fail, including both code and human-readable explanation.
 
 ### Error Handling
 

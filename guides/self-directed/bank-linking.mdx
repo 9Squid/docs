@@ -6,16 +6,16 @@ description: "Create, list, and remove ACH relationships that link an external b
 
 Before a user can move money into or out of their brokerage account, you must establish a trusted link between their Buildmarkets account and an external bank account they own. That link is called an **ACH relationship**. It is the permanent, reusable funding rail that makes all subsequent deposits and withdrawals possible.
 
-An ACH relationship represents a verified connection to a specific external bank account — identified by routing number and account number. Once created and approved, the relationship can be used repeatedly for funding activity without re-entering bank credentials. A single Buildmarkets account can hold multiple ACH relationships (e.g., a checking account and a savings account), but only **APPROVED** relationships can be used to initiate transfers.
+An ACH relationship represents a verified connection to a specific external bank account — identified by routing number and account number. Once created and approved, the relationship can be used repeatedly for funding activity without re-entering bank credentials. A single Buildmarkets account can hold multiple ACH relationships (e.g., a checking account and a savings account), but only **approved** relationships can be used to initiate transfers.
 
 ## ACH relationship lifecycle
 
 When a relationship is created, it passes through a short verification workflow before becoming active. Buildmarkets uses third-party instant verification in production — there are no micro-deposits.
 
-```
+```text
                     ┌─────────────┐
          POST       │             │
-  ──────────────►   │   PENDING   │
+  ──────────────►   │   pending   │
                     │             │
                     └──────┬──────┘
                            │  Third-party verification
@@ -23,38 +23,36 @@ When a relationship is created, it passes through a short verification workflow 
               │                         │
        ┌──────▼──────┐           ┌──────▼──────┐
        │             │           │             │
-       │  APPROVED   │           │  REJECTED   │
+       │  approved   │           │  rejected   │
        │             │           │             │
        └──────┬──────┘           └─────────────┘
               │                   Create a new relationship
               │  DELETE
        ┌──────▼──────┐
        │             │
-       │  CANCELLED  │  ◄─── Permanent; cannot be reactivated
+       │  cancelled  │  ◄─── Permanent; cannot be reactivated
        │             │
        └─────────────┘
 ```
 
 | Status | Description |
-|--------|-------------|
-| `PENDING` | Relationship submitted; verification in progress |
-| `APPROVED` | Verified and active — can be used for transfers |
-| `REJECTED` | Verification failed; a new relationship must be created |
-| `CANCELLED` | Permanently removed via DELETE; cannot be reactivated |
-
-> **Sandbox behavior:** In the sandbox environment, relationships transition from `PENDING` → `APPROVED` immediately upon creation. No third-party call is made.
+| --- | --- |
+| `pending` | Relationship submitted; verification in progress |
+| `approved` | Verified and active — can be used for transfers |
+| `rejected` | Verification failed; a new relationship must be created |
+| `cancelled` | Permanently removed via DELETE; cannot be reactivated |
 
 ## Endpoints
 
 | Method | Path | Description |
-|--------|------|-------------|
+| --- | --- | --- |
 | `POST` | `/v1/accounts/{accountId}/ach-relationships` | Link a new bank account |
 | `GET` | `/v1/accounts/{accountId}/ach-relationships` | List all ACH relationships for an account |
 | `DELETE` | `/v1/accounts/{accountId}/ach-relationships/{achId}` | Remove an ACH relationship |
 
 ## Create an ACH relationship
 
-Links an external bank account to the specified Buildmarkets brokerage account. Buildmarkets automatically attempts instant verification via a third-party bank data provider. If verification succeeds, the relationship moves to `APPROVED` without any manual review.
+Links an external bank account to the specified Buildmarkets brokerage account. Buildmarkets automatically attempts instant verification via a third-party bank data provider. If verification succeeds, the relationship moves to `approved` without any manual review.
 
 Only the **last 4 digits** of the bank account number are stored after creation. The full number is never returned in any subsequent API response.
 
@@ -63,13 +61,13 @@ Only the **last 4 digits** of the bank account number are stored after creation.
 #### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `accountId` | string (UUID) | ✅ | The Buildmarkets account ID to link the bank account to |
 
 #### Request body
 
 | Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `bank_account_owner_name` | string | ✅ | Full legal name of the account holder at the bank. Must match bank records |
 | `bank_account_type` | string | ✅ | Type of bank account. Enum: `CHECKING`, `SAVINGS` |
 | `bank_routing_number` | string | ✅ | 9-digit ABA routing number. Exactly 9 characters |
@@ -79,23 +77,23 @@ Only the **last 4 digits** of the bank account number are stored after creation.
 #### Response body (`201 Created`)
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | string (UUID) | Unique identifier for this ACH relationship |
 | `account_id` | string (UUID) | The Buildmarkets account this relationship is linked to |
-| `status` | string | Current lifecycle status: `PENDING`, `APPROVED`, `REJECTED`, `CANCELLED` |
+| `status` | string | Current lifecycle status: `pending`, `approved`, `rejected`, `cancelled` |
 | `bank_account_type` | string | `CHECKING` or `SAVINGS` |
-| `bank_account_number` | string | Masked — last 4 digits only (e.g., `****9012`) |
-| `bank_routing_number` | string | Full 9-digit ABA routing number |
-| `bank_account_owner_name` | string | Name on file at the bank |
+| `bank_account_last_four` | string | Last 4 digits of the bank account number (e.g., `"9012"`) |
 | `bank_name` | string \| null | Bank name if provided at creation |
 | `created_at` | string (ISO 8601) | Timestamp when the relationship was created |
 | `updated_at` | string (ISO 8601) | Timestamp of the last status change |
+
+The full bank account number, routing number, and owner name are **not** returned in any response — only the last four digits of the account number are stored.
 
 #### Example request
 
 ```bash
 curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f/ach-relationships \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY" \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "bank_account_owner_name": "Jane Smith",
@@ -112,18 +110,16 @@ curl -X POST https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b
 {
   "id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
   "account_id": "b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f",
-  "status": "APPROVED",
+  "status": "approved",
   "bank_account_type": "CHECKING",
-  "bank_account_number": "****9012",
-  "bank_routing_number": "021000021",
-  "bank_account_owner_name": "Jane Smith",
+  "bank_account_last_four": "9012",
   "bank_name": "Chase",
   "created_at": "2026-03-15T10:30:00Z",
   "updated_at": "2026-03-15T10:30:01Z"
 }
 ```
 
-> **Note:** In production, `status` will initially be `PENDING`. The relationship transitions to `APPROVED` or `REJECTED` asynchronously. Listen for the `ach_relationship.approved` or `ach_relationship.rejected` webhook events to be notified when verification completes.
+> **Note:** In production, `status` will initially be `pending`. The relationship transitions to `approved` or `rejected` asynchronously. Subscribe to the `funding.ach_relationship_created` webhook event and poll or watch subsequent status changes to know when verification completes.
 
 ## List ACH relationships
 
@@ -134,14 +130,14 @@ Returns all ACH relationships associated with a Buildmarkets account, across all
 #### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `accountId` | string (UUID) | ✅ | The Buildmarkets account ID |
 
 #### Example request
 
 ```bash
 curl https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f/ach-relationships \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 #### Example response
@@ -151,11 +147,9 @@ curl https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f
   {
     "id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
     "account_id": "b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f",
-    "status": "APPROVED",
+    "status": "approved",
     "bank_account_type": "CHECKING",
-    "bank_account_number": "****9012",
-    "bank_routing_number": "021000021",
-    "bank_account_owner_name": "Jane Smith",
+    "bank_account_last_four": "9012",
     "bank_name": "Chase",
     "created_at": "2026-03-15T10:30:00Z",
     "updated_at": "2026-03-15T10:30:01Z"
@@ -163,11 +157,9 @@ curl https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f
   {
     "id": "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6",
     "account_id": "b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f",
-    "status": "CANCELLED",
+    "status": "cancelled",
     "bank_account_type": "SAVINGS",
-    "bank_account_number": "****7788",
-    "bank_routing_number": "026009593",
-    "bank_account_owner_name": "Jane Smith",
+    "bank_account_last_four": "7788",
     "bank_name": "Bank of America",
     "created_at": "2026-01-10T08:00:00Z",
     "updated_at": "2026-02-20T14:22:00Z"
@@ -177,7 +169,7 @@ curl https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f
 
 ## Remove an ACH relationship
 
-Permanently removes an ACH relationship. The status transitions to `CANCELLED` and the relationship can no longer be used for deposits or withdrawals. This action is **irreversible** — if the user needs to link the same bank account again, a new ACH relationship must be created.
+Permanently removes an ACH relationship. The status transitions to `cancelled` and the relationship can no longer be used for deposits or withdrawals. This action is **irreversible** — if the user needs to link the same bank account again, a new ACH relationship must be created.
 
 > **Important:** You cannot remove an ACH relationship that has a pending transfer in progress. Confirm all in-flight transfers have settled before removing a relationship.
 
@@ -186,7 +178,7 @@ Permanently removes an ACH relationship. The status transitions to `CANCELLED` a
 #### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `accountId` | string (UUID) | ✅ | The Buildmarkets account ID |
 | `achId` | string (UUID) | ✅ | The ACH relationship ID to remove |
 
@@ -197,7 +189,7 @@ Returns `204 No Content` on success. No body is returned.
 ```bash
 curl -X DELETE \
   https://api.tappengine.com/v1/accounts/b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f/ach-relationships/e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 
 HTTP/1.1 204 No Content
 ```
@@ -205,12 +197,12 @@ HTTP/1.1 204 No Content
 ## Common errors
 
 | HTTP Status | Error | Cause |
-|-------------|-------|-------|
+| --- | --- | --- |
 | `400` | `INVALID_ROUTING_NUMBER` | Routing number is not exactly 9 digits or is not a valid ABA number |
 | `400` | `INVALID_ACCOUNT_NUMBER` | Account number is outside the 4–17 character range |
 | `404` | `ACCOUNT_NOT_FOUND` | The `accountId` does not exist or is not accessible with your API key |
 | `404` | `ACH_RELATIONSHIP_NOT_FOUND` | The `achId` does not exist for this account |
-| `409` | `DUPLICATE_ACH_RELATIONSHIP` | An active relationship already exists for this routing + account number combination |
+| `409` | `DUPLICATE_ACH_RELATIONSHIP` | An active relationship already exists for this routing \+ account number combination |
 | `422` | `ACCOUNT_NOT_ACTIVE` | The Buildmarkets account is not in `ACTIVE` status |
 
 ## Webhook events
@@ -218,15 +210,14 @@ HTTP/1.1 204 No Content
 Buildmarkets fires webhook events when an ACH relationship changes status. Subscribe to these to drive real-time UI updates.
 
 | Event | Fired when |
-|-------|-----------|
-| `ach_relationship.approved` | Verification succeeded; relationship is now `APPROVED` |
-| `ach_relationship.rejected` | Verification failed; relationship is now `REJECTED` |
-| `ach_relationship.cancelled` | A DELETE was processed; relationship is now `CANCELLED` |
+| --- | --- |
+| `funding.ach_relationship_created` | A bank account was linked to the account |
+| `funding.ach_relationship_removed` | A bank account was unlinked (relationship removed) |
 
 See Webhook Events Reference for full payload schemas.
 
 ## Next steps
 
-* [Deposits & Withdrawals](/guides/self-directed/deposits-withdrawals) — Use an approved relationship to move funds in and out
-* [Funding Activity](/guides/self-directed/deposits-withdrawals) — Query the full transfer history for an account
-* [Webhooks Overview](/platform/webhooks) — Receive real-time notifications on relationship status changes
+- [Deposits & Withdrawals](/guides/self-directed/deposits-withdrawals) — Use an approved relationship to move funds in and out
+- [Funding Activity](/guides/self-directed/deposits-withdrawals) — Query the full transfer history for an account
+- [Webhooks Overview](/platform/webhooks) — Receive real-time notifications on relationship status changes

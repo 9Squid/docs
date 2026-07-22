@@ -11,17 +11,17 @@ This page covers the full `POST /v1/accounts/{accountId}/orders` request schema,
 ### Request fields
 
 | Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `symbol` | string | ✅ | Ticker symbol (e.g. `"AAPL"`, `"SPY"`) |
 | `asset_class` | string | ✅ | `"equity"` or `"etf"` |
 | `order_type` | string | ✅ | `"market"` or `"limit"` |
-| `side` | string | ✅ | `"buy"` or `"sell"` |
-| `quantity` | string | ✅* | Number of shares. Decimal string (e.g. `"10"` or `"2.5"`). Required if `notional` is omitted. |
-| `notional` | string | ✅* | Dollar amount to invest (e.g. `"500.00"`). Required if `quantity` is omitted. |
-| `limit_price` | string | Required for `limit` orders | |
+| `side` | string | ✅ | `"buy"`, `"sell"`, `"sell_short"`, or `"buy_to_cover"` |
+| `quantity` | string | ✅\* | Number of shares. Decimal string (e.g. `"10"` or `"2.5"`). Required if `notional` is omitted. |
+| `notional` | string | ✅\* | Dollar amount to invest (e.g. `"500.00"`). Required if `quantity` is omitted. |
+| `limit_price` | string | Required for `limit` orders |  |
 | `time_in_force` | string | ✅ | `"day"`, `"gtc"`, `"opg"`, `"cls"`, `"ioc"`, or `"fok"` |
-| `extended_hours` | boolean | | `true` to allow pre/after-market execution. Requires `limit` + `day`. |
-| `client_order_id` | string | | Your unique idempotency key. Strongly recommended. |
+| `extended_hours` | boolean |  | `true` to allow pre/after-market execution. Requires `limit` \+ `day`. |
+| `client_order_id` | string | ✅ | Your unique idempotency key (1–255 characters). |
 
 ## Order examples
 
@@ -55,10 +55,12 @@ All order creation requests return `201 Created` with the full order object:
   "client_order_id": "user-42-buy-aapl-20250601-001",
   "account_id": "b3f2c9a1-4d5e-4a2f-8b3c-1e2d3f4a5b6c",
   "symbol": "AAPL", "asset_class": "equity", "order_type": "market", "side": "buy",
-  "quantity": "10", "notional": null, "limit_price": null, "filled_qty": "0", "filled_avg_price": null,
+  "quantity": "10", "notional_amount": null, "currency": "USD", "limit_price": null,
+  "filled_quantity": "0", "remaining_quantity": "10", "filled_avg_price": null,
   "time_in_force": "day", "extended_hours": false, "status": "pending_new",
+  "submitted_at": "2025-06-01T14:30:00Z",
   "created_at": "2025-06-01T14:30:00Z", "updated_at": "2025-06-01T14:30:00Z",
-  "filled_at": null, "canceled_at": null, "expired_at": null
+  "filled_at": null, "cancelled_at": null, "expired_at": null
 }
 ```
 
@@ -101,27 +103,27 @@ The VWAP fill price for the order is the volume-weighted average of all executio
 
 ## Tracking orders and idempotency
 
-If your order request times out, do not blindly retry without first checking whether the order was created — query `GET /v1/accounts/{accountId}/orders` and search for your `client_order_id`. Subscribe to `order.updated` and `order.filled` webhook events rather than polling.
+If your order request times out, do not blindly retry without first checking whether the order was created — query `GET /v1/accounts/{accountId}/orders` and search for your `client_order_id`. Subscribe to the `order.submitted`, `order.partially_filled`, `order.filled`, `order.cancelled`, and `order.rejected` webhook events rather than polling.
 
 ### Order state transitions you should handle in your UI
 
 | Event | User message |
-|-------|--------------|
+| --- | --- |
 | `pending_new` | "Submitting your order…" |
 | `new` | "Order placed and working" |
 | `partially_filled` | "Order partially filled (N of M shares)" |
 | `filled` | "Order complete" |
-| `canceled` | "Order cancelled" |
+| `cancelled` | "Order cancelled" |
 | `rejected` | "Order could not be placed — `{reason}`" |
 | `expired` | "Order expired unfilled" |
 
 ## Common order errors
 
 | Error code | Description | Fix |
-|-----------|-------------|-----|
+| --- | --- | --- |
 | `INSUFFICIENT_BUYING_POWER` | Not enough cash to cover the order | Reduce quantity or wait for a deposit to settle |
 | `SYMBOL_NOT_TRADABLE` | Symbol is not available for trading | Verify the symbol via Market Data reference endpoints |
-| `MARKET_CLOSED` | Market is closed and extended_hours is false | Use `extended_hours: true` with a limit order, or wait for market open |
+| `MARKET_CLOSED` | Market is closed and extended\_hours is false | Use `extended_hours: true` with a limit order, or wait for market open |
 | `DUPLICATE_CLIENT_ORDER_ID` | A `client_order_id` was reused | Use a new unique ID per order |
 | `INVALID_ORDER_STATE` | Tried to modify or cancel an order in a terminal state | Check order status before attempting modification |
 | `ACCOUNT_NOT_ACTIVE` | Account is not in ACTIVE status | Ensure KYC has completed and account is ACTIVE |
