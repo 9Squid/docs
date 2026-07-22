@@ -15,15 +15,18 @@ Buildmarkets offers two price data endpoints for equities: "a real-time quote en
 Returns live quotes sourced from QuoteMedia, including bid, ask, last trade price, volume, and change data. The service operates "during regular U.S. market hours (9:30 AM – 4:00 PM ET, Monday–Friday, excluding market holidays)."
 
 **Path Parameters:**
+
 - `symbol` (string, required) – Ticker symbol
 
 **Response Fields:**
+
 - `symbol`, `last`, `bid`, `ask`, `bid_size`, `ask_size`, `volume`, `change`, `change_percent`, `previous_close`, `open`, `high`, `low`, `timestamp`
 
 **Example:**
+
 ```bash
 curl https://api.tappengine.com/v1/marketdata/real-time/AAPL \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 ## Historical Prices
@@ -33,13 +36,16 @@ curl https://api.tappengine.com/v1/marketdata/real-time/AAPL \
 Provides end-of-day OHLCV bars spanning multiple years for most U.S.-listed equities.
 
 **Path Parameters:**
+
 - `symbol` (string, required)
 
 **Query Parameters:**
+
 - `startDate` (YYYY-MM-DD, optional) – Defaults to 1 year prior
 - `endDate` (YYYY-MM-DD, optional) – Defaults to today
 
 **Response Fields:**
+
 - `date`, `open`, `high`, `low`, `close`, `adj_close`, `volume`
 
 Use `adj_close` for calculations, as "it accounts for stock splits and dividend distributions, making the series historically consistent."
@@ -47,7 +53,7 @@ Use `adj_close` for calculations, as "it accounts for stock splits and dividend 
 ## Common Errors
 
 | Status | Error | Cause |
-|--------|-------|-------|
+| --- | --- | --- |
 | 400 | `INVALID_SYMBOL` | Unrecognized symbol |
 | 400 | `INVALID_DATE_RANGE` | Malformed dates or reversed range |
 | 404 | `SYMBOL_NOT_FOUND` | No data available |
@@ -75,6 +81,7 @@ This endpoint returns "a rich snapshot of a company — its business description
 **Required parameter:** `symbol` (ticker, e.g., AAPL, NVDA)
 
 **Key response fields include:**
+
 - Company name, description, and exchange listing
 - Sector and industry classification
 - Market capitalization and valuation ratios (P/E ratio, EPS, dividend yield)
@@ -88,6 +95,7 @@ This endpoint provides "structured financial statements for a symbol — balance
 **Path parameter:** Ticker symbol or `*CUSIP`/`*ISIN` identifier
 
 **Query options:**
+
 - `statementType`: Choose `annual` or `quarterly` (default: annual)
 - `numberOfReports`: Specify number of periods (default: 5)
 
@@ -108,7 +116,7 @@ Three companion endpoints round out Buildmarkets's per-symbol market data surfac
 ### Endpoints
 
 | Method | Path | Description |
-|--------|------|-------------|
+| --- | --- | --- |
 | `GET` | `/v1/marketdata/news/{symbol}` | News articles and corporate actions for a symbol |
 | `GET` | `/v1/marketdata/cash-dividends/{symbol}` | Dividend history with ex-dates and amounts |
 | `GET` | `/v1/marketdata/logos/{symbol}` | Company logo image |
@@ -124,19 +132,19 @@ Returns a list of news articles and corporate action events linked to a specific
 ##### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `symbol` | string | ✅ | Ticker symbol (e.g., `AAPL`) |
 
 ##### Query parameters
 
 | Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
+| --- | --- | --- | --- | --- |
 | `limit` | integer | ❌ | `50` | Maximum number of items to return |
 
 ##### Response fields
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | string | Unique identifier for the news item |
 | `type` | string | Item type: `news` or `corporate_action` |
 | `headline` | string | Article headline or event title |
@@ -150,7 +158,7 @@ Returns a list of news articles and corporate action events linked to a specific
 
 ```bash
 curl "https://api.tappengine.com/v1/marketdata/news/AAPL?limit=5" \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 ##### Example response
@@ -203,20 +211,20 @@ Supports lookup by ticker or by CUSIP/ISIN using the `*` prefix.
 ##### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `symbol` | string | ✅ | Ticker (e.g., `AAPL`) or `*CUSIP`/`*ISIN` (e.g., `*US0378331005`) |
 
 ##### Query parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `excludingFrom` | string (YYYY-MM-DD) | ❌ | Start of date range filter (ex-dividend date ≥ this value) |
 | `excludingTo` | string (YYYY-MM-DD) | ❌ | End of date range filter (ex-dividend date ≤ this value). Must be used with `excludingFrom` |
 
 ##### Response fields
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `symbol` | string | Ticker symbol |
 | `dividends` | array | Ordered list of dividend records (most recent first) |
 | `dividends[].ex_date` | string (YYYY-MM-DD) | Ex-dividend date — must hold shares before this date to receive the dividend |
@@ -230,7 +238,7 @@ Supports lookup by ticker or by CUSIP/ISIN using the `*` prefix.
 
 ```bash
 curl "https://api.tappengine.com/v1/marketdata/cash-dividends/AAPL?excludingFrom=2025-01-01&excludingTo=2025-12-31" \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 ##### Example response
@@ -288,13 +296,13 @@ Logos are provided by QuoteMedia and are updated periodically to reflect rebrand
 ##### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `symbol` | string | ✅ | Ticker symbol (e.g., `AAPL`) |
 
 ##### Response fields
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `symbol` | string | The requested ticker symbol |
 | `logo_url` | string | HTTPS URL to the company's logo image (PNG or SVG) |
 | `width` | integer \| null | Image width in pixels (if available) |
@@ -304,7 +312,7 @@ Logos are provided by QuoteMedia and are updated periodically to reflect rebrand
 
 ```bash
 curl https://api.tappengine.com/v1/marketdata/logos/AAPL \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 ##### Example response
@@ -325,7 +333,7 @@ curl https://api.tappengine.com/v1/marketdata/logos/AAPL \
 ### Common errors
 
 | HTTP Status | Error | Cause |
-|-------------|-------|-------|
+| --- | --- | --- |
 | `400` | `INVALID_SYMBOL` | Symbol format is not recognized |
 | `400` | `INVALID_DATE_RANGE` | `excludingTo` used without `excludingFrom`, or dates are malformed |
 | `404` | `SYMBOL_NOT_FOUND` | No data found for this symbol |
@@ -352,13 +360,9 @@ The Buildmarkets Reference Data endpoints provide programmatic access to the pla
 Five primary endpoints serve different discovery needs:
 
 1. **Equity Security Master** (`POST /v1/marketdata/reference/equity-security-master`) — Returns paginated listings of all tradeable equities with pagination support via `limit` and `offset` parameters.
-
 2. **Symbol Details** (`POST /v1/marketdata/reference/symbol-details`) — Delivers bulk metadata for specific symbols in a single request, useful for watchlist loading.
-
 3. **Sector Symbols** (`POST /v1/marketdata/reference/sector-symbols`) — Retrieves all tradeable symbols within a designated sector.
-
 4. **List Sectors** (`GET /v1/marketdata/reference/sectors`) — Provides all recognized sector names as valid inputs for other endpoints.
-
 5. **List Industries** (`GET /v1/marketdata/reference/industries`) — Returns industry classifications that subdivide sectors for granular filtering.
 
 ### Key Response Fields
@@ -369,4 +373,4 @@ Equity records include symbol, company name, exchange, asset type, CUSIP, ISIN, 
 
 Common HTTP 400 errors include `INVALID_SECTOR` (unrecognized sector name), `SYMBOLS_REQUIRED` (missing symbols array), and `TOO_MANY_SYMBOLS` (exceeding submission limits).
 
-All endpoints require Bearer token authentication and support JSON request bodies to accommodate complex filtering without URL length constraints.
+All endpoints require API key authentication (`X-API-Key` / `X-API-Secret` headers, or HTTP Basic auth) and support JSON request bodies to accommodate complex filtering without URL length constraints.
