@@ -1,7 +1,7 @@
 ---
 title: "Quick Start: Wealth Management"
 sidebarTitle: "Wealth Management"
-description: "Common Buildmarkets integration patterns for embedded brokerage, advisor-managed accounts, robo-advisors, challenger banks, and employee benefits."
+description: "Common Buildmarkets integration patterns for embedded brokerage, robo-advisors, challenger banks, and employee benefits."
 ---
 
 "Buildmarkets is flexible enough to power a wide range of embedded investing products." This documentation explores integration patterns to clarify which API capabilities align with your needs before development begins.
@@ -9,18 +9,18 @@ description: "Common Buildmarkets integration patterns for embedded brokerage, a
 ## Use case matrix
 
 | Scenario | Accounts | Trading | Funding | Market Data | Documents | Webhooks |
-|----------|----------|---------|---------|-------------|-----------|----------|
-| Embedded brokerage app | ✅ | ✅ | ✅ | ✅ | | |
+| --- | --- | --- | --- | --- | --- | --- |
+| Embedded brokerage app | ✅ | ✅ | ✅ | ✅ |  |  |
 | Advisor-managed accounts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Robo-advisor / automated investing | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Challenger bank with investing | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| Employee investment benefits | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Challenger bank with investing | ✅ | ✅ | ✅ | ✅ |  | ✅ |
+| Employee investment benefits | ✅ | ✅ | ✅ | ✅ | ✅ |  |
 
 ## 1. Embedded brokerage app
 
 **Scenario:** You're building a consumer fintech app and want to add an "Invest" tab that lets users open a brokerage account, fund it, and trade stocks and ETFs.
 
-**What you'll build:** (1) Collect KYC data and open a brokerage account — `POST /v1/accounts`; (2) Link the user's external bank account via ACH — `POST /v1/accounts/{accountId}/ach-relationships`; (3) Initiate an initial cash deposit — `POST /v1/accounts/{accountId}/funding/deposits`; (4) Display a stock or ETF search using reference data — `POST /v1/marketdata/reference/symbol-details`; (5) Place a market or limit order — `POST /v1/accounts/{accountId}/orders`; (6) Display the portfolio — balances and open positions — `GET /v1/accounts/{accountId}/balances` + `/positions`.
+**What you'll build:** (1) Collect KYC data and open a brokerage account — `POST /v1/accounts`; (2) Link the user's external bank account via ACH — `POST /v1/accounts/{accountId}/ach-relationships`; (3) Initiate an initial cash deposit — `POST /v1/accounts/{accountId}/funding/deposits`; (4) Display a stock or ETF search using reference data — `POST /v1/marketdata/reference/symbol-details`; (5) Place a market or limit order — `POST /v1/accounts/{accountId}/orders`; (6) Display the portfolio — balances and open positions — `GET /v1/accounts/{accountId}/balances` \+ `/positions`.
 
 **Key account fields:** `account_type: "individual"`, `investment_profile`, `agreements`. **Key order fields:** `symbol`, `asset_class` (`equity` or `etf`), `order_type`, `side`, `quantity` or `notional`, `client_order_id`.
 
@@ -28,7 +28,7 @@ description: "Common Buildmarkets integration patterns for embedded brokerage, a
 
 **Scenario:** You operate a wealth management platform where registered advisors manage portfolios on behalf of clients.
 
-**What you'll build:** (1) Open a client account with advisor metadata — `POST /v1/accounts`; (2) Fund the client account via ACH — `POST /v1/accounts/{accountId}/funding/deposits`; (3) Place and manage orders on the client's behalf — `POST /v1/accounts/{accountId}/orders`; (4) Modify or cancel working orders — `PATCH` / `DELETE /v1/accounts/{accountId}/orders/{orderId}`; (5) Monitor portfolio value across all client accounts — `GET /v1/accounts/{accountId}/balances` + `/positions`; (6) Receive real-time fill confirmations via webhook — `POST /v1/webhooks`.
+**What you'll build:** (1) Open a client account with advisor metadata — `POST /v1/accounts`; (2) Fund the client account via ACH — `POST /v1/accounts/{accountId}/funding/deposits`; (3) Place and manage orders on the client's behalf — `POST /v1/accounts/{accountId}/orders`; (4) Modify or cancel working orders — `PATCH` / `DELETE /v1/accounts/{accountId}/orders/{orderId}`; (5) Monitor portfolio value across all client accounts — `GET /v1/accounts/{accountId}/balances` \+ `/positions`; (6) Receive real-time fill confirmations via webhook — `POST /v1/webhooks`.
 
 **Key account fields:** `discretionary_account: true` (grants the advisor full trading authority); `registered_rep_code` (associates with a registered representative); `advisor_code` (associates with a specific advisor). **Key order fields:** Use `client_order_id` on every order to prevent duplicate submissions. Orders support `market`, `limit`, `stop`, and `stop_limit` types for equities and ETFs.
 
@@ -36,7 +36,7 @@ description: "Common Buildmarkets integration patterns for embedded brokerage, a
 
 **Scenario:** You're building an automated investing product where users define goals and risk tolerance and your system manages their portfolio using rules-based logic.
 
-**What you'll build:** (1) Open an account capturing detailed suitability data — `POST /v1/accounts`; (2) Enable automatic dividend reinvestment — `dividend_reinvestment: true` on account creation; (3) Fund accounts on a recurring schedule via ACH — `POST /v1/accounts/{accountId}/funding/deposits`; (4) Submit dollar-based orders to implement your allocation model — `POST /v1/accounts/{accountId}/orders` with `notional`; (5) Rebalance by cancelling and replacing working orders — `DELETE` + `POST /v1/accounts/{accountId}/orders`; (6) React to order fill events to trigger the next rebalancing step — `POST /v1/webhooks` (subscribe to order events).
+**What you'll build:** (1) Open an account capturing detailed suitability data — `POST /v1/accounts`; (2) Enable automatic dividend reinvestment — `dividend_reinvestment: true` on account creation; (3) Fund accounts on a recurring schedule via ACH — `POST /v1/accounts/{accountId}/funding/deposits`; (4) Submit dollar-based orders to implement your allocation model — `POST /v1/accounts/{accountId}/orders` with `notional`; (5) Rebalance by cancelling and replacing working orders — `DELETE` \+ `POST /v1/accounts/{accountId}/orders`; (6) React to order fill events to trigger the next rebalancing step — `POST /v1/webhooks` (subscribe to order events).
 
 **Key account fields:** `investment_profile.risk_tolerance` (`conservative`, `moderate`, `aggressive`); `investment_profile.investment_objective` (e.g. `growth`, `income`, `capital_preservation`); `investment_profile.time_horizon` (`short`, `average`, `long`); `dividend_reinvestment` (auto-reinvests dividends into the same security). **Key order fields:** Use `notional` (dollar amount) instead of `quantity` (share count) for dollar-cost averaging. Supports `gtc` (good-till-cancelled) time-in-force for limit-based allocation strategies.
 
@@ -69,7 +69,7 @@ Pass a `client_order_id` on every `POST /v1/accounts/{accountId}/orders` request
 ### Handling pending states
 
 | Resource | Pending state | Active state |
-|----------|---------------|--------------|
+| --- | --- | --- |
 | Account | `SUBMITTED` → `APPROVAL_PENDING` | `ACTIVE` |
 | ACH relationship | `PENDING` | `APPROVED` |
 | Deposit / withdrawal | `PENDING` | `SETTLED` |
@@ -82,7 +82,7 @@ Use webhooks (or poll sparingly) to detect these transitions before presenting c
 
 ## Next steps
 
-* Getting Started — Make your first API call end-to-end
-* Account Opening — Full field reference for `POST /v1/accounts`
-* Placing Orders — Order types, time-in-force, and idempotency
-* Webhooks Overview — Event catalog and delivery configuration
+- Getting Started — Make your first API call end-to-end
+- Account Opening — Full field reference for `POST /v1/accounts`
+- Placing Orders — Order types, time-in-force, and idempotency
+- Webhooks Overview — Event catalog and delivery configuration

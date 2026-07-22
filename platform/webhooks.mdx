@@ -12,17 +12,17 @@ This page covers how to register and manage webhook endpoints. For a full refere
 
 ## How webhooks work
 
-```
+```text
       Event occurs in Buildmarkets         Buildmarkets sends HTTP POST          Your server
       (e.g., order filled)   →     to your webhook URL      →    processes event
                                    with signed payload            and returns 2xx
 ```
 
-1.  **Register** an HTTPS endpoint via `POST /v1/webhooks`
-2.  **Receive** a signing secret — used to verify that payloads come from Buildmarkets
-3.  **Buildmarkets delivers** a JSON payload to your URL via HTTP POST whenever a subscribed event fires
-4.  **Your server** validates the signature, processes the event, and returns a `2xx` status
-5.  **Buildmarkets retries** failed deliveries automatically (see [Security & Delivery](/guides/operations/webhook-setup))
+1. **Register** an HTTPS endpoint via `POST /v1/webhooks`
+2. **Receive** a signing secret — used to verify that payloads come from Buildmarkets
+3. **Buildmarkets delivers** a JSON payload to your URL via HTTP POST whenever a subscribed event fires
+4. **Your server** validates the signature, processes the event, and returns a `2xx` status
+5. **Buildmarkets retries** failed deliveries automatically (see [Security & Delivery](/guides/operations/webhook-setup))
 
 > **The secret is shown only once.** Store it securely at registration time — it cannot be retrieved again. If lost, delete the webhook and create a new one.
 
@@ -31,7 +31,7 @@ This page covers how to register and manage webhook endpoints. For a full refere
 ## Endpoints
 
 | Method | Path | Description |
-|--------|------|-------------|
+| --- | --- | --- |
 | `POST` | `/v1/webhooks` | Register a new webhook endpoint |
 | `GET` | `/v1/webhooks` | List all registered webhooks |
 | `GET` | `/v1/webhooks/{webhookId}` | Get details for a specific webhook |
@@ -51,14 +51,14 @@ Registers a new HTTPS endpoint to receive events. Pass an empty `events` array t
 #### Request body
 
 | Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `url` | string (URI) | ✅ | HTTPS URL where Buildmarkets will POST event payloads. Must be a valid `https://` URL |
 | `events` | array of strings | ✅ | Event types to subscribe to. Pass an empty array `[]` to receive all events. See [Webhook Events Reference](/guides/operations/webhook-setup) for valid values |
 
 #### Response body (`201 Created`)
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | string (UUID) | Unique identifier for this webhook |
 | `url` | string | The registered HTTPS endpoint |
 | `events` | array of strings | Subscribed event types (empty = all) |
@@ -72,7 +72,7 @@ Registers a new HTTPS endpoint to receive events. Pass an empty `events` array t
 
 ```bash
 curl -X POST https://api.tappengine.com/v1/webhooks \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY" \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://myapp.com/webhooks/buildmarkets",
@@ -84,7 +84,7 @@ curl -X POST https://api.tappengine.com/v1/webhooks \
 
 ```bash
 curl -X POST https://api.tappengine.com/v1/webhooks \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY" \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://myapp.com/webhooks/buildmarkets",
@@ -129,7 +129,7 @@ Returns all registered webhook endpoints for your account.
 
 ```bash
 curl https://api.tappengine.com/v1/webhooks \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 #### Example response
@@ -159,14 +159,14 @@ Returns the configuration for a single registered webhook by ID. The signing `se
 #### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `webhookId` | string (UUID) | ✅ | The webhook ID |
 
 #### Example request
 
 ```bash
 curl https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6 \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 ---
@@ -180,13 +180,13 @@ Updates the URL, subscribed events, or status of an existing webhook. Only inclu
 #### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `webhookId` | string (UUID) | ✅ | The webhook ID to update |
 
 #### Request body (all fields optional)
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `url` | string | New HTTPS URL to deliver events to |
 | `events` | array of strings | Updated list of subscribed event types |
 | `status` | string | `active` to enable delivery, `disabled` to pause it |
@@ -195,7 +195,7 @@ Updates the URL, subscribed events, or status of an existing webhook. Only inclu
 
 ```bash
 curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6 \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY" \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"status": "disabled"}'
 ```
@@ -204,7 +204,7 @@ curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-
 
 ```bash
 curl -X PATCH https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6 \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY" \
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://myapp.com/webhooks/buildmarkets-v2",
@@ -223,14 +223,14 @@ Triggers a synthetic test payload to be sent to the webhook's registered URL. Us
 #### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `webhookId` | string (UUID) | ✅ | The webhook ID to test |
 
 #### Example request
 
 ```bash
 curl -X POST https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6/test \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 Buildmarkets sends a test payload with `"event_type": "webhook.test"` to the registered URL. Your endpoint should respond with a `2xx` status. Check the [delivery history](/guides/operations/webhook-setup) to see whether it was received successfully.
@@ -249,7 +249,7 @@ Returns `204 No Content` on success.
 
 ```bash
 curl -X DELETE https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6 \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 ---
@@ -257,7 +257,7 @@ curl -X DELETE https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d
 ## Common errors
 
 | HTTP Status | Error | Cause |
-|-------------|-------|-------|
+| --- | --- | --- |
 | `400` | `INVALID_URL` | Webhook URL is not a valid `https://` URI |
 | `400` | `INVALID_EVENT` | One or more event names in the `events` array are not recognized |
 | `404` | `WEBHOOK_NOT_FOUND` | No webhook found for the provided `webhookId` |
@@ -266,7 +266,7 @@ curl -X DELETE https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d
 
 ## Next steps
 
-*   [Webhook Events Reference →](/guides/operations/webhook-setup) — Full list of event types and their payload schemas
-*   [Webhook Security & Delivery →](/guides/operations/webhook-setup) — Signature verification, retry logic, and delivery history
+- [Webhook Events Reference →](/guides/operations/webhook-setup) — Full list of event types and their payload schemas
+- [Webhook Security & Delivery →](/guides/operations/webhook-setup) — Signature verification, retry logic, and delivery history
 
 Updated 3 months ago

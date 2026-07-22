@@ -26,7 +26,7 @@ Every webhook event shares the same outer envelope structure, regardless of even
 ```
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | string | Unique identifier for this event delivery |
 | `event_type` | string | The event type name (see tables below) |
 | `created_at` | string (ISO 8601) | Timestamp when the event was generated |
@@ -37,7 +37,7 @@ Every webhook event shares the same outer envelope structure, regardless of even
 ## All event types
 
 | Domain | Event | When it fires |
-|--------|-------|---------------|
+| --- | --- | --- |
 | Account | `account.kyc_approved` | KYC review passed; account is now `ACTIVE` |
 | Account | `account.kyc_rejected` | KYC review failed; account is now `ACTION_REQUIRED` |
 | Account | `account.closed` | Account has been successfully closed |
@@ -162,16 +162,16 @@ Fires when an ACH deposit fully settles and funds are available in the account.
     "account_id": "b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f",
     "activity_id": "f1a2b3c4-d5e6-7f8a-9b0c-d1e2f3a4b5c6",
     "ach_relationship_id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
+    "type": "deposit",
     "amount": "2500.00",
-    "status": "SETTLED",
-    "settled_at": "2026-03-17T08:30:00Z"
+    "status": "completed"
   }
 }
 ```
 
 ### `funding.deposit_returned`
 
-Fires when an ACH deposit is returned by the bank. The `return_code` identifies the reason.
+Fires when an ACH deposit is returned by the bank. The `nacha_return_code` identifies the reason.
 
 ```json
 {
@@ -182,10 +182,11 @@ Fires when an ACH deposit is returned by the bank. The `return_code` identifies 
     "account_id": "b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f",
     "activity_id": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
     "ach_relationship_id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
+    "type": "deposit",
     "amount": "500.00",
-    "status": "RETURNED",
-    "return_code": "R01",
-    "return_reason": "Insufficient Funds"
+    "status": "returned",
+    "nacha_return_code": "R01",
+    "nacha_return_reason": "Insufficient Funds"
   }
 }
 ```
@@ -203,9 +204,9 @@ Fires when an ACH withdrawal fully settles at the destination bank.
     "account_id": "b3d9f1a2-4c7e-4f0b-9e2d-1a2b3c4d5e6f",
     "activity_id": "c4d5e6f7-a8b9-0c1d-2e3f-4a5b6c7d8e9f",
     "ach_relationship_id": "e7f2a1b3-9c4d-4e0f-8a1b-2c3d4e5f6a7b",
+    "type": "withdrawal",
     "amount": "500.00",
-    "status": "SETTLED",
-    "settled_at": "2026-03-18T09:00:00Z"
+    "status": "completed"
   }
 }
 ```
@@ -354,8 +355,8 @@ app.post('/webhooks/buildmarkets', (req, res) => {
 
 ## Next steps
 
-* [Webhooks Overview →](/platform/webhooks) — Register and manage webhook endpoints
-* [Webhook Security & Delivery →](/guides/operations/webhook-setup) — Verify signatures and understand retry behavior
+- [Webhooks Overview →](/platform/webhooks) — Register and manage webhook endpoints
+- [Webhook Security & Delivery →](/guides/operations/webhook-setup) — Verify signatures and understand retry behavior
 
 Updated 3 months ago
 
@@ -365,21 +366,21 @@ Updated 3 months ago
 
 Every webhook payload Buildmarkets sends is cryptographically signed. Verifying this signature before processing an event is **critical** — it ensures the payload genuinely came from Buildmarkets and has not been tampered with. This page explains how to verify signatures, what delivery guarantees Buildmarkets provides, how to inspect delivery history, and best practices for building a reliable webhook handler.
 
-* * *
+---
 
 ### Signature verification
 
-When you register a webhook, Buildmarkets returns a `secret` that begins with `whsec_`. Buildmarkets uses this secret to compute an HMAC-SHA256 signature of the raw request body and attaches it to every delivery via the `X-BMKT-Signature` header.
+When you register a webhook, Buildmarkets returns a `secret` that begins with `whsec_`. Buildmarkets uses this secret to compute an HMAC-SHA256 signature of the raw request body and attaches it to every delivery via the `X-TAPP-Signature` header. The header value is prefixed: `sha256=<hex digest>`.
 
 **Your endpoint must verify this signature before acting on any payload.**
 
 #### Verification steps
 
-1.  Read the raw request body as bytes (do not parse JSON first)
-2.  Read the `X-BMKT-Signature` header
-3.  Compute `HMAC-SHA256(raw_body, secret)`
-4.  Compare your computed signature to the value in the header
-5.  If they match — process the event. If not — return `400` and ignore the payload
+1. Read the raw request body as bytes (do not parse JSON first)
+2. Read the `X-TAPP-Signature` header and strip the `sha256=` prefix
+3. Compute `HMAC-SHA256(raw_body, secret)`
+4. Compare your computed signature to the value in the header
+5. If they match — process the event. If not — return `400` and ignore the payload
 
 > **Important:** Always use a constant-time comparison function when comparing signatures to prevent timing attacks. Do not use simple string equality (`===`).
 
@@ -396,7 +397,7 @@ app.use('/webhooks/buildmarkets', express.raw({ type: 'application/json' }));
 const WEBHOOK_SECRET = process.env.BUILDMARKETS_WEBHOOK_SECRET; // your whsec_... value
 
 app.post('/webhooks/buildmarkets', (req, res) => {
-  const signature = req.headers['x-buildmarkets-signature'];
+  const signature = (req.headers['x-tapp-signature'] || '').replace(/^sha256=/, '');
   if (!signature) {
     return res.status(400).send('Missing signature');
   }
@@ -441,7 +442,7 @@ WEBHOOK_SECRET = os.environ['BUILDMARKETS_WEBHOOK_SECRET'].encode()
 
 @app.route('/webhooks/buildmarkets', methods=['POST'])
 def handle_webhook():
-    signature = request.headers.get('X-BMKT-Signature')
+    signature = request.headers.get('X-TAPP-Signature', '').removeprefix('sha256=')
     if not signature:
         abort(400, 'Missing signature')
 
@@ -465,7 +466,7 @@ def handle_webhook():
     return {'received': True}, 200
 ```
 
-* * *
+---
 
 ### Delivery mechanics
 
@@ -473,9 +474,9 @@ def handle_webhook():
 
 Your webhook URL must:
 
-*   Be publicly accessible via HTTPS (TLS 1.2 or higher)
-*   Return a `2xx` HTTP status code within **10 seconds**
-*   Accept POST requests with `Content-Type: application/json`
+- Be publicly accessible via HTTPS (TLS 1.2 or higher)
+- Return a `2xx` HTTP status code within **10 seconds**
+- Accept POST requests with `Content-Type: application/json`
 
 Buildmarkets treats any non-`2xx` response (including `3xx` redirects) as a delivery failure and will retry.
 
@@ -484,7 +485,7 @@ Buildmarkets treats any non-`2xx` response (including `3xx` redirects) as a deli
 If your endpoint does not return a `2xx` within 10 seconds, Buildmarkets retries delivery with exponential backoff:
 
 | Attempt | Delay after previous attempt |
-|---------|------------------------------|
+| --- | --- |
 | 1st retry | 5 minutes |
 | 2nd retry | 30 minutes |
 | 3rd retry | 2 hours |
@@ -499,7 +500,7 @@ After 5 failed retries, the delivery is marked as permanently failed. Buildmarke
 
 Buildmarkets guarantees **at-least-once delivery** — every event will be delivered at least once, but rare network conditions can result in duplicate deliveries. Use the `id` field from the payload envelope as an idempotency key to detect and safely ignore duplicates.
 
-* * *
+---
 
 ### Delivery history
 
@@ -510,7 +511,7 @@ The deliveries endpoint provides a log of every delivery attempt made for a spec
 ##### Path parameters
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+| --- | --- | --- | --- |
 | `webhookId` | string (UUID) | ✅ | The webhook to retrieve delivery history for |
 
 ##### Response fields
@@ -518,7 +519,7 @@ The deliveries endpoint provides a log of every delivery attempt made for a spec
 Each delivery attempt object contains:
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | string | Unique delivery attempt ID |
 | `event_id` | string | ID of the event this delivery corresponds to |
 | `event_type` | string | The event type that was delivered |
@@ -533,7 +534,7 @@ Each delivery attempt object contains:
 
 ```bash
 curl https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6/deliveries \
-  -H "Authorization: Bearer $BUILDMARKETS_API_KEY"
+  -H "X-API-Key: $BUILDMARKETS_API_KEY" -H "X-API-Secret: $BUILDMARKETS_API_SECRET"
 ```
 
 ##### Example response
@@ -576,7 +577,7 @@ curl https://api.tappengine.com/v1/webhooks/wh_a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c
 ]
 ```
 
-* * *
+---
 
 ### Disabling a webhook
 
@@ -584,22 +585,22 @@ If your endpoint is temporarily unavailable (e.g., during a deployment), you can
 
 > **Note:** Buildmarkets does not queue events that occur while a webhook is disabled. Events that fire during a disabled window will not be retroactively delivered. Use the relevant Buildmarkets API endpoints to reconcile missed state changes if needed.
 
-* * *
+---
 
 ### Security best practices
 
-*   **Verify every signature** before processing any payload — do not skip this step even in development
-*   **Use `HTTPS` only** — never register a webhook pointing to a plain HTTP URL
-*   **Store the secret securely** — treat it like a password; use environment variables or a secrets manager, never hardcode it
-*   **Return `2xx` fast, process async** — offload event handling to a queue to avoid timeout-induced retries
-*   **Implement idempotency** — use the event `id` to detect and discard duplicate deliveries
-*   **Monitor delivery history** — set up alerts for sustained delivery failures so you can detect endpoint outages quickly
+- **Verify every signature** before processing any payload — do not skip this step even in development
+- **Use `HTTPS` only** — never register a webhook pointing to a plain HTTP URL
+- **Store the secret securely** — treat it like a password; use environment variables or a secrets manager, never hardcode it
+- **Return `2xx` fast, process async** — offload event handling to a queue to avoid timeout-induced retries
+- **Implement idempotency** — use the event `id` to detect and discard duplicate deliveries
+- **Monitor delivery history** — set up alerts for sustained delivery failures so you can detect endpoint outages quickly
 
-* * *
+---
 
 ### Next steps
 
-*   [Webhooks Overview →](/platform/webhooks) — Register and manage webhook endpoints
-*   [Webhook Events Reference →](/guides/operations/webhook-setup) — Full payload schemas for every event type
+- [Webhooks Overview →](/platform/webhooks) — Register and manage webhook endpoints
+- [Webhook Events Reference →](/guides/operations/webhook-setup) — Full payload schemas for every event type
 
 Updated 3 months ago

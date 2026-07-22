@@ -11,7 +11,7 @@ The Trading APIs enable you to place, modify, cancel, and list orders, plus view
 ## Trading Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| --- | --- | --- |
 | `POST` | `/v1/accounts/{accountId}/orders` | Place a new order |
 | `GET` | `/v1/accounts/{accountId}/orders` | List all orders for an account |
 | `GET` | `/v1/accounts/{accountId}/orders/{orderId}` | Get order details |
@@ -32,7 +32,7 @@ The Trading APIs enable you to place, modify, cancel, and list orders, plus view
 ## Time-in-Force Options
 
 | `time_in_force` | Description |
-|-----------------|-------------|
+| --- | --- |
 | `day` | Active for the current trading day only. Cancels at market close if unfilled. |
 | `gtc` | Good Till Cancelled. Remains active until filled or manually cancelled. |
 | `opg` | Market-on-open. Executes at the opening auction price. |
@@ -42,7 +42,7 @@ The Trading APIs enable you to place, modify, cancel, and list orders, plus view
 
 ## Quantity vs. Notional
 
-Share-based uses `quantity` (e.g., `"quantity": "10"` — buy exactly 10 shares). Dollar-based uses `notional` (e.g., `"notional": "500.00"` — buy $500 worth). "Use `notional` for fractional-share-like dollar-cost averaging experiences." Do not send both `quantity` and `notional` in the same request.
+Share-based uses `quantity` (e.g., `"quantity": "10"` — buy exactly 10 shares). Dollar-based uses `notional` (e.g., `"notional": "500.00"` — buy \$500 worth). "Use `notional` for fractional-share-like dollar-cost averaging experiences." Do not send both `quantity` and `notional` in the same request.
 
 ## Extended Hours Trading
 
@@ -54,16 +54,16 @@ Set `extended_hours: true` to allow execution during pre-market (4:00 AM–9:30 
 
 ## Order Lifecycle
 
-Orders transition through these states: `pending_new` → `new` → `partially_filled` → `filled`. Terminal/branch states include `canceled`, `cancel_pending`, `rejected`, and `expired`.
+Orders transition through these states: `pending_new` → `new` → `partially_filled` → `filled`. Terminal/branch states include `cancelled`, `pending_cancel`, `rejected`, and `expired`.
 
 | State | Description |
-|-------|-------------|
+| --- | --- |
 | `pending_new` | Order received by Buildmarkets; being submitted to the market |
 | `new` | Order accepted by the exchange/market |
 | `partially_filled` | Some shares filled; remainder still working |
 | `filled` | Order is fully executed |
-| `canceled` | Order was cancelled (by you or by the exchange) |
-| `cancel_pending` | Cancel request submitted, awaiting confirmation |
+| `cancelled` | Order was cancelled (by you or by the exchange) |
+| `pending_cancel` | Cancel request submitted, awaiting confirmation |
 | `rejected` | Order was rejected (e.g., insufficient funds, invalid symbol) |
 | `expired` | Day order reached end of session unfilled, or IOC/FOK not immediately filled |
 

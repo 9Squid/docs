@@ -9,12 +9,11 @@ description: "Integration-pattern catalog covering common embedded investing use
 ## Use case matrix
 
 | Scenario | Accounts | Trading | Funding | Market Data | Documents | Webhooks |
-|----------|----------|---------|---------|-------------|-----------|----------|
-| Embedded brokerage app | ✅ | ✅ | ✅ | ✅ | | |
-| Advisor-managed accounts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| --- | --- | --- | --- | --- | --- | --- |
+| Embedded brokerage app | ✅ | ✅ | ✅ | ✅ |  |  |
 | Robo-advisor / automated investing | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Challenger bank with investing | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| Employee investment benefits | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Challenger bank with investing | ✅ | ✅ | ✅ | ✅ |  | ✅ |
+| Employee investment benefits | ✅ | ✅ | ✅ | ✅ | ✅ |  |
 
 ## 1. Embedded brokerage app
 
@@ -27,14 +26,16 @@ description: "Integration-pattern catalog covering common embedded investing use
 3. Initiate an initial cash deposit — `POST /v1/accounts/{accountId}/funding/deposits`
 4. Display a stock or ETF search using reference data — `POST /v1/marketdata/reference/symbol-details`
 5. Place a market or limit order — `POST /v1/accounts/{accountId}/orders`
-6. Display the portfolio — balances and open positions — `GET /v1/accounts/{accountId}/balances` + `GET /v1/accounts/{accountId}/positions`
+6. Display the portfolio — balances and open positions — `GET /v1/accounts/{accountId}/balances` \+ `GET /v1/accounts/{accountId}/positions`
 
 **Key account fields:**
+
 - `account_type: "individual"`
 - `investment_profile`
 - `agreements`
 
 **Key order fields:**
+
 - `symbol`
 - `asset_class` (`equity` or `etf`)
 - `order_type`
@@ -42,52 +43,17 @@ description: "Integration-pattern catalog covering common embedded investing use
 - `quantity` or `notional`
 - `client_order_id`
 
-## 2. Advisor-managed accounts
+**Multiple accounts per user:** a single user can hold several accounts. Keep the `user_id` from the account response — once the user's KYC is approved, open additional accounts (for example an `ira_roth` alongside their `individual` account) via `POST /v1/users/{userId}/accounts` with just an `account_type`. Document verification is skipped because the existing approval carries over.
 
-**Scenario:** You operate a wealth management platform where registered advisors manage portfolios on behalf of clients.
-
-**What you'll build:**
-
-1. Open a client account with advisor metadata — `POST /v1/accounts`
-2. Fund the client account via ACH — `POST /v1/accounts/{accountId}/funding/deposits`
-3. Place and manage orders on the client's behalf — `POST /v1/accounts/{accountId}/orders`
-4. Modify or cancel working orders — `PATCH /v1/accounts/{accountId}/orders/{orderId}` / `DELETE /v1/accounts/{accountId}/orders/{orderId}`
-5. Monitor portfolio value across all client accounts — `GET /v1/accounts/{accountId}/balances` + `GET /v1/accounts/{accountId}/positions`
-6. Receive real-time fill confirmations via webhook — `POST /v1/webhooks`
-
-**Key account fields:**
-- `discretionary_account: true` — grants the advisor full trading authority
-- `registered_rep_code` — associates with a registered representative
-- `advisor_code` — associates with a specific advisor
-
-**Key order fields:**
-- Use `client_order_id` on every order to prevent duplicate submissions
-- Orders support `market`, `limit`, `stop`, and `stop_limit` types for equities and ETFs
-
-## 3. Robo-advisor / automated investing
+## 2. Robo-advisor / automated investing
 
 **Scenario:** You're building an automated investing product where users define goals and risk tolerance and your system manages their portfolio using rules-based logic.
 
-**What you'll build:**
+**What you'll build:** (1) Open an account capturing detailed suitability data — `POST /v1/accounts`; (2) Enable automatic dividend reinvestment — `dividend_reinvestment: true` on account creation; (3) Fund accounts on a recurring schedule via ACH — `POST /v1/accounts/{accountId}/funding/deposits`; (4) Submit dollar-based orders to implement your allocation model — `POST /v1/accounts/{accountId}/orders` with `notional`; (5) Rebalance by cancelling and replacing working orders — `DELETE` \+ `POST /v1/accounts/{accountId}/orders`; (6) React to order fill events to trigger the next rebalancing step — `POST /v1/webhooks` (subscribe to order events).
 
-1. Open an account capturing detailed suitability data — `POST /v1/accounts`
-2. Enable automatic dividend reinvestment — `dividend_reinvestment: true` on account creation
-3. Fund accounts on a recurring schedule via ACH — `POST /v1/accounts/{accountId}/funding/deposits`
-4. Submit dollar-based orders to implement your allocation model — `POST /v1/accounts/{accountId}/orders` with `notional`
-5. Rebalance by cancelling and replacing working orders — `DELETE /v1/accounts/{accountId}/orders/{orderId}` + `POST /v1/accounts/{accountId}/orders`
-6. React to order fill events to trigger the next rebalancing step — `POST /v1/webhooks` (subscribe to order events)
+**Key account fields:** `investment_profile.risk_tolerance` (`conservative`, `moderate`, `aggressive`); `investment_profile.investment_objective` (`growth`, `income`, `speculation`, `preservation`); `investment_profile.time_horizon` (`short`, `medium`, `long`); `dividend_reinvestment` (auto-reinvests dividends into the same security). **Key order fields:** Use `notional` (dollar amount) instead of `quantity` (share count) for dollar-cost averaging. Supports `gtc` (good-till-cancelled) time-in-force for limit-based allocation strategies.
 
-**Key account fields:**
-- `investment_profile.risk_tolerance` — `conservative`, `moderate`, `aggressive`
-- `investment_profile.investment_objective` — e.g. `growth`, `income`, `capital_preservation`
-- `investment_profile.time_horizon` — `short`, `average`, `long`
-- `dividend_reinvestment` — auto-reinvests dividends into the same security
-
-**Key order fields:**
-- Use `notional` (dollar amount) instead of `quantity` (share count) for dollar-cost averaging
-- Supports `gtc` (good-till-cancelled) time-in-force for limit-based allocation strategies
-
-## 4. Challenger bank with investing
+## 3. Challenger bank with investing
 
 **Scenario:** You run a challenger bank and want to offer integrated stock and ETF trading alongside your existing deposit accounts.
 
@@ -101,13 +67,15 @@ description: "Integration-pattern catalog covering common embedded investing use
 6. Retrieve execution reports for internal reconciliation — `GET /v1/accounts/{accountId}/orders/{orderId}/executions`
 
 **Key account field:**
+
 - `corr_metadata` — a freeform string (up to 255 chars) for storing your internal user or account ID alongside the Buildmarkets account. Makes cross-system lookups straightforward without a separate mapping table.
 
 **Key market data endpoints:**
+
 - Real-time prices, company profiles, stock logos, and news feeds are all available at the partner level — no account context required
 - Ideal for powering discovery and watchlist UIs
 
-## 5. Employee investment benefits
+## 4. Employee investment benefits
 
 **Scenario:** You're an HR or benefits platform and want to offer employees a brokerage account as a workplace benefit, funded via payroll integration.
 
@@ -116,11 +84,12 @@ description: "Integration-pattern catalog covering common embedded investing use
 1. Open accounts with employer and employee metadata — `POST /v1/accounts` with `corr_metadata`, `registered_rep_code`
 2. Set up ACH relationships linked to employee bank accounts — `POST /v1/accounts/{accountId}/ach-relationships`
 3. Initiate recurring payroll-linked deposits — `POST /v1/accounts/{accountId}/funding/deposits`
-4. Offer a curated investment menu using sector and security reference data — `GET /v1/marketdata/reference/sectors` + `POST /v1/marketdata/reference/sector-symbols`
+4. Offer a curated investment menu using sector and security reference data — `GET /v1/marketdata/reference/sectors` \+ `POST /v1/marketdata/reference/sector-symbols`
 5. Deliver tax documents and statements to employees by email — `POST /v1/documents/email`
 6. Retrieve year-end documents including W-9s — `POST /v1/documents/w9`, `POST /v1/documents/list`
 
 **Key market data endpoints:**
+
 - Use `POST /v1/marketdata/reference/equity-security-master` and `POST /v1/marketdata/reference/sector-symbols` to build a curated fund menu scoped to specific industries or sectors rather than exposing the entire universe of tradable securities
 
 ## Common integration patterns
@@ -136,10 +105,10 @@ Pass a `client_order_id` on every `POST /v1/accounts/{accountId}/orders` request
 ### Handling pending states
 
 | Resource | Pending state | Active state |
-|----------|---------------|--------------|
+| --- | --- | --- |
 | Account | `SUBMITTED` → `APPROVAL_PENDING` | `ACTIVE` |
-| ACH relationship | `PENDING` | `APPROVED` |
-| Deposit / withdrawal | `PENDING` | `SETTLED` |
+| ACH relationship | `pending` | `approved` |
+| Deposit / withdrawal | `pending` → `sent` | `completed` |
 
 Use webhooks (or poll sparingly) to detect these transitions before presenting confirmations in your UI.
 
@@ -149,7 +118,7 @@ Use webhooks (or poll sparingly) to detect these transitions before presenting c
 
 ## Next steps
 
-* Getting Started — Make your first API call end-to-end
-* Account Opening — Full field reference for `POST /v1/accounts`
-* Placing Orders — Order types, time-in-force, and idempotency
-* Webhooks Overview — Event catalog and delivery configuration
+- Getting Started — Make your first API call end-to-end
+- Account Opening — Full field reference for `POST /v1/accounts`
+- Placing Orders — Order types, time-in-force, and idempotency
+- Webhooks Overview — Event catalog and delivery configuration

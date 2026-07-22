@@ -10,7 +10,7 @@ The Buildmarkets API uses **API key authentication**. Every request must include
 
 Every Buildmarkets API request requires two HTTP headers:
 
-```
+```text
 X-API-Key: <your-api-key>
 X-API-Secret: <your-api-secret>
 ```
@@ -25,12 +25,21 @@ curl https://dev-tapp-api.tappengine.com/v1/accounts \
   -H "X-API-Secret: bm_secret_xyz789"
 ```
 
+The same key pair can alternatively be sent as **HTTP Basic auth** â€” `Authorization: Basic base64(api_key:api_secret)`:
+
+```bash
+curl https://dev-tapp-api.tappengine.com/v1/accounts \
+  -u "bm_key_abc123:bm_secret_xyz789"
+```
+
+> **Note:** `Authorization: Bearer <token>` is reserved for user-facing OAuth/JWT flows (e.g., the CLI's device login). Passing an API key as a Bearer token is **not** supported.
+
 ## API key scopes
 
 When generating an API key, you assign it one or more **scopes** that control which endpoints it can access. This follows the principle of least privilege.
 
 | Scope | Access granted |
-|-------|----------------|
+| --- | --- |
 | `accounts:read` | Read account details, balances, positions |
 | `accounts:write` | Create, update, and close accounts |
 | `funding:read` | Read ACH relationships and funding activity |
@@ -116,7 +125,7 @@ Returns `204 No Content` on success. Revoked keys are immediately invalidated â€
 ## Security best practices
 
 | Practice | Guidance |
-|----------|----------|
+| --- | --- |
 | **Never expose keys client-side** | API keys should only be used in server-side code. Never include them in mobile app bundles, browser JavaScript, or public repositories. |
 | **Use separate keys per environment** | Use distinct key pairs for sandbox and production. |
 | **Rotate keys regularly** | Generate a new key, update your application config, then revoke the old key. |
@@ -127,7 +136,7 @@ Returns `204 No Content` on success. Revoked keys are immediately invalidated â€
 ## Error responses
 
 | HTTP status | Meaning |
-|-------------|---------|
+| --- | --- |
 | `401 Unauthorized` | Missing, invalid, or revoked API key/secret |
 | `403 Forbidden` | Key is valid but lacks the required scope for this endpoint |
 
