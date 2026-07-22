@@ -18,7 +18,7 @@ A Buildmarkets **account** represents one end-user brokerage account. Each accou
 
 ### Orders
 
-An **order** is an instruction to buy or sell a security. Buildmarkets supports equity and ETF orders with market, limit, stop, and stop-limit order types. Orders go through a lifecycle of states and generate **executions** (fills) once matched.
+An **order** is an instruction to buy or sell a security. Buildmarkets supports equity and ETF orders with market and limit order types. Orders go through a lifecycle of states and generate **executions** (fills) once matched.
 
 ### ACH Relationships
 
@@ -30,7 +30,7 @@ An **ACH relationship** links a customer's external bank account to their Buildm
 
 ## Data model overview
 
-Partner (you) holds API Keys (credentials) and Accounts[]. Each Account contains Contact, Identity, Disclosures, Agreements[], InvestmentProfile, TradingConfigurations, Balances, Positions[], Orders[] (each with Executions[]), ACH Relationships[], and Funding Activity[]. Webhooks are partner-level. Market Data is partner-level (not account-scoped). Documents are partner-level plus account-level uploads.
+Partner (you) holds API Keys (credentials) and Accounts\[\]. Each Account contains Contact, Identity, Disclosures, Agreements\[\], InvestmentProfile, TradingConfigurations, Balances, Positions\[\], Orders\[\] (each with Executions\[\]), ACH Relationships\[\], and Funding Activity\[\]. Webhooks are partner-level. Market Data is partner-level (not account-scoped). Documents are partner-level plus account-level uploads.
 
 ## API conventions
 
@@ -42,7 +42,7 @@ The Buildmarkets API is a REST API. All request and response bodies are JSON. Se
 
 Every request must include two headers:
 
-```
+```text
 X-API-Key: <your-api-key>
 X-API-Secret: <your-api-secret>
 ```
@@ -51,10 +51,10 @@ See Authentication Overview for how to generate and manage API keys.
 
 ### IDs
 
-* `accountId` — UUID string, e.g. `"b3f2c9a1-4d5e-4a2f-8b3c-1e2d3f4a5b6c"`
-* `orderId` — UUID string
-* `achId` — UUID string
-* `webhookId` — UUID string
+- `accountId` — UUID string, e.g. `"b3f2c9a1-4d5e-4a2f-8b3c-1e2d3f4a5b6c"`
+- `orderId` — UUID string
+- `achId` — UUID string
+- `webhookId` — UUID string
 
 Always store and pass IDs as strings. Do not treat them as integers or attempt to sort them numerically.
 
@@ -92,18 +92,10 @@ For `POST` requests that initiate financial operations (orders, deposits, withdr
 
 ## Sandbox testing
 
-In the sandbox environment (`https://dev-tapp-api.tappengine.com`), KYC outcomes are controlled by the SSN suffix you provide when creating an account:
-
-| SSN suffix | Outcome |
-|------------|---------|
-| `0001` | `APPROVED` |
-| `0002` | `REJECTED` |
-| `0003` | `MANUAL_REVIEW` |
-
-For example, SSN `111-22-0001` will result in an immediately approved account. All other sandbox behavior (order fills, funding transfers) is also simulated — no real money or real orders are involved.
+In the sandbox environment (`https://dev-tapp-api.tappengine.com`), account applications run through the same KYC pipeline as production — identity verification and CIP screening are performed by the clearing system, and the outcome is determined by that review, not by any special test values such as SSN suffixes. Order fills and funding transfers are simulated — no real money or real orders are involved.
 
 ## Next steps
 
-* Getting Started — Step-by-step guide to your first API call
-* Authentication Overview — Generating and managing API keys
-* Use Cases — Common integration patterns
+- Getting Started — Step-by-step guide to your first API call
+- Authentication Overview — Generating and managing API keys
+- Use Cases — Common integration patterns
