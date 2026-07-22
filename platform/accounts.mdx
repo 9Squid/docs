@@ -16,12 +16,16 @@ A Buildmarkets account is "a fully-managed brokerage account for one of your end
 
 - **individual** — Standard individual brokerage account (default)
 - **joint** — Joint account requiring a `joint_owner` object in the creation request
+- **ira\_traditional** — Traditional IRA retirement account
+- **ira\_roth** — Roth IRA retirement account
+- **custodial** — Custodial account opened on behalf of a minor
 
 ## Account Endpoints
 
 | Method | Endpoint | Purpose |
-|--------|----------|---------|
+| --- | --- | --- |
 | POST | `/v1/accounts` | Create new brokerage account |
+| POST | `/v1/users/{userId}/accounts` | Open an additional account for an existing, KYC-approved user |
 | GET | `/v1/accounts` | List all accounts (paginated, filterable) |
 | GET | `/v1/accounts/{accountId}` | Get full account details |
 | PATCH | `/v1/accounts/{accountId}` | Update contact, identity, or profile fields |
@@ -30,38 +34,41 @@ A Buildmarkets account is "a fully-managed brokerage account for one of your end
 | GET | `/v1/accounts/{accountId}/positions` | List all open positions |
 | GET | `/v1/accounts/{accountId}/positions/{symbol}` | Get specific position by symbol |
 
+## Multiple Accounts per User
+
+Each account belongs to a **user** — the verified person behind it. The first `POST /v1/accounts` call creates both the user profile and their first account; the account response includes a `user_id` field referencing that user.
+
+Once any of a user's accounts passes KYC, the user is considered KYC-approved and can open additional accounts without repeating document verification:
+
+- Call `POST /v1/users/{userId}/accounts` with only the `account_type` (e.g., a second `individual` account, or an `ira_roth` alongside an existing `individual`).
+- Identity fields are locked to the stored, verified user profile — sending an `identity` object is rejected.
+- Optional sections (`contact`, `disclosures`, `agreements`, `investment_profile`, etc.) may be provided to override the stored values; anything omitted falls back to the user's profile.
+- Document verification is skipped — the existing KYC approval carries over, and the account is booked on the clearing system directly.
+
+If the user's KYC is not yet approved, the request fails with `409 USER_KYC_NOT_APPROVED`.
+
 ## Account Statuses
 
 | Status | Meaning |
-|--------|---------|
+| --- | --- |
 | SUBMITTED | Account created and submitted for KYC review |
-| ACTION_REQUIRED | Additional information needed before KYC completion |
-| APPROVAL_PENDING | KYC in progress with manual review underway |
-| APPROVED | KYC approved; account being activated |
+| ACTION\_REQUIRED | Additional information needed (KYC in manual review, or account restricted) |
+| APPROVAL\_PENDING | KYC approved; account being activated on the clearing system |
 | ACTIVE | Account fully open for trading and funding |
-| REJECTED | KYC rejected; account cannot activate |
-| ACCOUNT_CLOSED | Account closed; no further activity permitted |
+| ACCOUNT\_CLOSED | Account closed; no further activity permitted |
 
 ### KYC Statuses
 
 The `kyc_status` field provides granular visibility into identity verification:
 
 | Status | Meaning |
-|--------|---------|
-| SUBMITTED | Identity data awaiting processing |
-| APPROVED | Identity verified |
-| REJECTED | Identity could not be verified |
-| MANUAL_REVIEW | Requires Buildmarkets compliance team review |
+| --- | --- |
+| `submitted` | Identity data awaiting processing |
+| `approved` | Identity verified |
+| `rejected` | Identity could not be verified |
+| `action_required` | Requires additional action — either customer resubmission or compliance review; check `kyc_results` for the reason |
 
-### Sandbox Testing
-
-Control KYC outcomes using SSN suffixes:
-
-| Suffix | Result |
-|--------|--------|
-| 0001 | APPROVED (instant) |
-| 0002 | REJECTED |
-| 0003 | MANUAL_REVIEW |
+The account response also includes a `kyc_results` object with the verification outcome: `summary` (`pass`, `fail`, or `indeterminate`), `reject` (a list of rejection reason labels), and `additional_information`. It is `null` while the review is still in progress.
 
 ## Listing Accounts
 
@@ -78,7 +85,7 @@ The list endpoint supports pagination, filtering, and sorting.
       "id": "b3f2c9a1-4d5e-4a2f-8b3c-1e2d3f4a5b6c",
       "account_number": "ACC123456789",
       "status": "ACTIVE",
-      "kyc_status": "APPROVED",
+      "kyc_status": "approved",
       "currency": "USD",
       "last_equity": "12450.75",
       "created_at": "2025-06-01T12:00:00Z",

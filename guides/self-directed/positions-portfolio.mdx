@@ -22,11 +22,11 @@ The response includes: total cash, settled/unsettled cash components, buying pow
 
 ## Position Field Definitions
 
-Position data encompasses: ticker symbol, asset class, share quantity, average entry price, side (long), market value, cost basis, unrealized gain/loss in dollars and percentage, current price, prior day close, and intraday change metrics.
+Each position record includes: `id`, `account_id`, ticker `symbol`, share `quantity`, `average_price` (average entry price), `current_price`, `market_value`, `unrealized_pnl` (dollar gain/loss), `pnl_percentage`, and `side` (`long` or `short`).
 
 ## Settlement Timing
 
-ACH deposits require 1–3 business days to settle in production (instant in sandbox). Equity sale proceeds settle T+1. Unsettled funds appear separately and don't count toward buying power.
+ACH deposits require 1–3 business days to settle in production (instant in sandbox). Equity sale proceeds settle T\+1. Unsettled funds appear separately and don't count toward buying power.
 
 ## Practical Recommendations
 
@@ -54,11 +54,11 @@ The funding activity endpoint surfaces cash events including deposits, withdrawa
 
 ### Activity Types Reference
 
-The system tracks various activity types: DEPOSIT, WITHDRAWAL, DIV, DIVTAX, JNLC, PTC, REORG, SSO, ACATC, and ACATS.
+The system tracks these activity types (returned lowercase): `deposit`, `withdrawal`, `transfer_in`, `transfer_out`, and `journal`.
 
 ### Activity Statuses
 
-Activities can be PENDING, SETTLED, FAILED, or CANCELLED.
+Activities can be `pending`, `sent`, `completed`, `cancelled`, `returned`, or `failed`.
 
 ### Building a Transaction History UI
 
@@ -66,4 +66,4 @@ Combine orders and funding activity into a unified transaction timeline sorted c
 
 ### Reconciliation
 
-For daily reconciliation, retrieve settled funding activity, filled orders, and current balances, then verify that "previous_equity + net_trades + net_cash_activity ≈ current_equity."
+For daily reconciliation, retrieve settled funding activity, filled orders, and current balances, then verify that "previous\_equity \+ net\_trades \+ net\_cash\_activity ≈ current\_equity."
