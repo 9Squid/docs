@@ -40,5 +40,5 @@ Follow these practices to get the most accurate help from AI tools when building
 
 1. **Reference `llms-full.txt` for comprehensive context** — copy the file content as context before asking integration questions. This prevents the AI from inventing API signatures or field names.
 2. **Use the OpenAPI spec for implementation details** — when writing or reviewing API calls, point your assistant at the spec to ensure exact parameter names, enum values, and required fields are correct.
-3. **Include specific error handling** based on documented error responses — see the [Error Codes](/resources/error-codes) reference for every `BLUM-{STATUS}-{SEQ}` code and its resolution.
+3. **Include specific error handling** based on documented error responses — see the [Error Codes](/resources/error-codes) reference for every error code (e.g., `VALIDATION_ERROR`, `INSUFFICIENT_BUYING_POWER`) and its resolution.
 4. **Follow authentication patterns** outlined in the [Authentication](/platform/authentication) guide — the AI can help you implement Basic Auth correctly once it has the spec as context.

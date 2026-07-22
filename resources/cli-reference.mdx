@@ -4,18 +4,18 @@ sidebarTitle: "Command Reference"
 description: "Exhaustive command-line reference for every bm command, option, and subcommand."
 ---
 
-Every command in this reference is generated directly from the `bm` CLI binary. 
+Every command in this reference is generated directly from the `bm` CLI binary.
 
-* **Required parameters**: Both `REQUIRED` command flags and positional `<args>` must be provided for the command to execute.
-* **Global flags**: The following global flags apply to every single command:
-  * `--json` — Force JSON format output.
-  * `--table` — Force table format output.
-  * `--non-interactive` — Disable terminal prompts, loading animations, and colors (useful for CI/CD or agent scripts).
-  * `--yes` — Automatically bypass confirmation dialogs.
-  * `--debug` — Output detailed network logs and execution tracing to stderr.
-  * `--watch` — Poll the command on an interval and re-render the output.
-  * `--watch-interval <N>` — Set the polling interval in seconds (minimum 1, default 2).
-  * `--api-key <key>` / `--api-secret <secret>` — Pass partner M2M credentials directly for a single invocation.
+- **Required parameters**: Both `REQUIRED` command flags and positional `<args>` must be provided for the command to execute.
+- **Global flags**: The following global flags apply to every single command:
+  - `--json` — Force JSON format output.
+  - `--table` — Force table format output.
+  - `--non-interactive` — Disable terminal prompts, loading animations, and colors (useful for CI/CD or agent scripts).
+  - `--yes` — Automatically bypass confirmation dialogs.
+  - `--debug` — Output detailed network logs and execution tracing to stderr.
+  - `--watch` — Poll the command on an interval and re-render the output.
+  - `--watch-interval <N>` — Set the polling interval in seconds (minimum 1, default 2).
+  - `--api-key <key>` / `--api-secret <secret>` — Pass partner M2M credentials directly for a single invocation.
 
 For a detailed explanation of authorization states, environment configuration, and scripting examples, refer to the [CLI Developer Guide](/resources/cli).
 
@@ -34,6 +34,7 @@ bm — the Buildmarkets developer CLI.
 A thin, scriptable front end to the Buildmarkets brokerage API for humans at terminals, CI/CD pipelines, and focused-action agents. Talks to the API gateway directly (never through the MCP).
 
 Auth:
+
 ```bash
 bm login                         # trader  — OAuth device flow (Keycloak)
 bm config set api-key <key>      # partner — API key + secret
@@ -70,13 +71,14 @@ Get and set CLI configuration
 Manage `~/.buildmarkets/config.yaml`. Environment variables override the file at runtime (env always wins).
 
 Settable keys:
-  * `environment`      `sandbox` | `qa` | `live`
-  * `api-key`          partner API key (stored in OS keychain)
-  * `api-secret`       partner API secret (stored in OS keychain)
-  * `api-base-url`     override the API gateway URL
-  * `auth-base-url`    override the Keycloak base URL
-  * `auth-realm`       override the Keycloak realm
-  * `auth-client-id`   override the OAuth client id
+
+- `environment`      `sandbox` | `qa` | `live`
+- `api-key`          partner API key (stored in OS keychain)
+- `api-secret`       partner API secret (stored in OS keychain)
+- `api-base-url`     override the API gateway URL
+- `auth-base-url`    override the Keycloak base URL
+- `auth-realm`       override the Keycloak realm
+- `auth-client-id`   override the OAuth client id
 
 #### Options
 
@@ -149,6 +151,7 @@ Starts the OAuth 2.0 device authorization flow against Keycloak.
 Prints a verification URL and user code, then polls until you approve in the browser. The resulting token is stored in the OS keychain (or a `0600` config file if no keychain is available).
 
 For partner / M2M auth, use an API key instead:
+
 ```bash
   bm config set api-key <key>
   bm config set api-secret <secret>
@@ -290,13 +293,11 @@ Open a new brokerage account (interactive KYC or `--data`)
 Opens a new brokerage account (`POST /v1/accounts`) with inline KYC.
 
 Two ways to supply the application:
-  * `--interactive`   walk through the required fields (default on a TTY)
-  * `--data <json>`   provide the full CreateAccountRequest body, inline or `@file.json`
 
-Sandbox `tax_id` test paths (deterministic KYC outcomes):
-  * ending `0001` → approved
-  * ending `0002` → rejected
-  * ending `0003` → manual_review
+- `--interactive`   walk through the required fields (default on a TTY)
+- `--data <json>`   provide the full CreateAccountRequest body, inline or `@file.json`
+
+Note: sandbox KYC outcomes are determined by the real verification pipeline (identity verification \+ clearing-system CIP screening), not by deterministic `tax_id` test values.
 
 ```bash
 bm accounts open [flags]
@@ -1120,6 +1121,7 @@ Uploads an owner document (`POST /v1/accounts/{accountId}/documents/upload`).
 The file is read locally, base64-encoded, and its MIME type inferred from the extension unless `--mime-type` is given.
 
 Example:
+
 ```bash
   bm documents upload --account <id> --type w8ben --file ./form.pdf
 ```
@@ -1387,6 +1389,7 @@ Forwards webhook events from your Buildmarkets tenant to the terminal (or a loca
 Backend: `GET /v1/webhooks/stream` (SSE).
 
 Examples:
+
 ```bash
   bm webhooks tail
   bm webhooks tail --forward-to http://localhost:4242/webhooks
@@ -1439,6 +1442,7 @@ Filters compose with logical AND.
 Status filter accepts an exact code (404) or a class (4xx, 5xx, 2xx).
 
 Examples:
+
 ```bash
   bm logs tail
   bm logs tail --method POST --status 4xx --path '/v1/accounts/*'
@@ -1660,8 +1664,9 @@ Backend: `POST /v1/dev/sandbox/reset`.
 Refuses to run against a live tenant: if the resolved API key looks live, the command exits `3` before any network call.
 
 Fixtures:
-  * `minimal`  3 accounts (approved/rejected/manual_review), approved funded $10,000
-  * `full`     minimal + open orders, ACH relationships, a webhook, sample documents
+
+- `minimal`  3 accounts (approved/rejected/manual\_review), approved funded \$10,000
+- `full`     minimal \+ open orders, ACH relationships, a webhook, sample documents
 
 ```bash
 bm dev sandbox reset [flags]
@@ -1687,16 +1692,11 @@ Sandbox helpers
 
 ### bm sandbox test-paths
 
-List deterministic sandbox test paths
+List deterministic sandbox test paths (deprecated)
 
 #### Synopsis
 
-Fetches the sandbox test-path catalog from `GET /v1/dev/sandbox/test-paths`.
-
-If the endpoint is unreachable, falls back to the hard-coded list shipped in this binary (updated each release):
-  * `tax_id` ending `0001` → approved
-  * `tax_id` ending `0002` → rejected
-  * `tax_id` ending `0003` → manual_review
+**Deprecated.** Sandbox KYC outcomes are no longer controlled by deterministic `tax_id` test paths — applications run through the real verification pipeline (identity verification \+ clearing-system CIP screening). This command is retained for backwards compatibility only.
 
 ```bash
 bm sandbox test-paths [flags]

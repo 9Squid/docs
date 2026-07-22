@@ -23,9 +23,11 @@ Test credentials via health endpoint. A `200 OK` response indicates success; `40
 
 ## Step 2: Open a Brokerage Account
 
-Create an account using POST request to `/v1/accounts` with account type, contact information, identity details, disclosures, agreements, and investment profile. In sandbox testing, using SSN ending in `0001` produces immediate KYC approval.
+Create an account using POST request to `/v1/accounts` with account type, contact information, identity details, disclosures, agreements, investment profile, and government ID images (the `documents` array). KYC approval is determined by the identity-verification review and the clearing system's CIP screening — in both sandbox and production, the outcome depends on the submitted identity data, not on any special test values.
 
-Account response includes: `id`, `account_number`, `status`, `kyc_status`, `currency`, `last_equity`, `created_at`, and `account_type`.
+Account response includes: `id`, `user_id`, `account_number`, `status`, `kyc_status`, `currency`, `created_at`, and `account_type`.
+
+A single user can hold multiple accounts. Keep the `user_id` from the response — once the user's KYC is approved, open additional accounts (e.g., an IRA alongside an individual account) via `POST /v1/users/{userId}/accounts` with just an `account_type`; document verification is skipped because the existing approval carries over.
 
 ## Step 3: Link a Bank Account
 
